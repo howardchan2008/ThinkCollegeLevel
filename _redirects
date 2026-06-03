@@ -1,0 +1,6 @@
+/about/*                  https://howardchan.me/about/:splat                  301
+/projects/*               https://howardchan.me/projects/:splat               301
+/research/*               https://howardchan.me/research/:splat               301
+/awards-certifications/*  https://howardchan.me/awards-certifications/:splat  301
+/contact/*                https://howardchan.me/contact/:splat                301
+/                         /guides/                                            302
