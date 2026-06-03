@@ -35,6 +35,9 @@ Howard Chan's public profile, projects, research, awards & certifications, and c
 - ElevateOS: AI-enabled education platform that unifies tutoring operations, worksheet generation, past-paper simulation, admissions support, and parent-facing execution into one system for IB, AP, SAT, and counseling workflows.
 - Kiwanis Pulse @ Manila Convention 2026: Mobile convention companion that surfaces schedules, venue navigation, sessions, and announcements in a format attendees can use instantly on their phones.
 - Katalyst: Centralized volunteering backend and coordination platform for service organisations, designed to support institutional memory, operational continuity, and cross-branch collaboration.
+- Prior Moves: Live tool that predicts the next moves of well-known investors by modelling 13F filings, then tracks each call against what actually happened.
+- Tatemori: B2B tool helping Japanese organisations operationalize the October 2026 kasuhara (customer-harassment) law and protect frontline staff.
+- nobill: Local-first subscription tracker that scans Gmail receipts for recurring charges and links straight to each merchant’s cancel page.
 
 ### Civic initiatives
 - Mottainai Initiative: Food-waste initiative that redirects edible but visually rejected produce into usable food and community action.
@@ -73,11 +76,15 @@ Howard Chan's public profile, projects, research, awards & certifications, and c
 - Stock Market Investing for Beginners: Introductory investing course completion.
 
 ## Links
-- GitHub: https://github.com/imjusthoward/
+- Codeberg: https://codeberg.org/imjusthoward
+- GitLab: https://gitlab.com/howard53
 - Wantedly: https://www.wantedly.com/id/chakhang_chan
 - LinkedIn: https://www.linkedin.com/in/howardchan2008/
 - Email: mailto:chakhanghowardchan2008@gmail.com
 - ElevateOS: https://elevateos.org
+- Prior Moves: https://priormoves.com
+- Tatemori: https://tatemori.com
+- nobill: https://nobill.app
 - Kiwanis Pulse @ Manila Convention 2026: https://pulse-kiwanis-2026-309064718968.us-west1.run.app/
 - Crystal Century: https://crystalcentury.com
 - WhatsApp: https://wa.me/85293442294

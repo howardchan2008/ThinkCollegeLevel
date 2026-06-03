@@ -4,9 +4,12 @@ import { site } from './site-data.mjs';
 
 const root = process.cwd();
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+const guides = JSON.parse(await readFile(new URL('./guides-data.json', import.meta.url), 'utf8'));
+const ELEVATEOS_CTA = 'https://elevateos.org/partner-demo';
 
 const navItems = [
   { label: 'Home', href: '/' },
+  { label: 'Guides', href: '/guides/' },
   { label: 'About', href: '/about/' },
   { label: 'Projects', href: '/projects/' },
   { label: 'Research', href: '/research/' },
@@ -82,6 +85,24 @@ const researchPages = site.research.map((item) => ({
   render: () => renderResearchArticle(item),
 }));
 
+const guideIndexPage = {
+  path: '/guides/',
+  file: path.join('guides', 'index.html'),
+  title: `Guides · ${site.name}`,
+  description: 'Honest guides to the IB and UK/US/HK university admissions for international students.',
+  bodyClass: 'page-guides',
+  render: renderGuidesIndex,
+};
+
+const guidePages = guides.map((g) => ({
+  path: `/guides/${g.slug}/`,
+  file: path.join('guides', g.slug, 'index.html'),
+  title: `${g.title} · ${site.name}`,
+  description: g.metaDescription,
+  bodyClass: 'page-post',
+  render: () => renderGuideArticle(g),
+}));
+
 const legacyRedirectPages = [
   {
     path: '/portfolio/',
@@ -116,7 +137,7 @@ async function main() {
   await cleanupGeneratedRoutes();
   await cleanupMediaAssets();
 
-  for (const page of [...canonicalPages, ...researchPages]) {
+  for (const page of [...canonicalPages, ...researchPages, guideIndexPage, ...guidePages]) {
     await writeOutput(page.file, page.render(page));
   }
 
@@ -489,6 +510,86 @@ function renderResearchArticle(post) {
   });
 }
 
+function renderGuidesIndex() {
+  const intro = renderIntro('Guides', 'Honest, specific guides to the IB and to UK, US, and Hong Kong university admissions — written by an incoming Cambridge HSPS student who did it from an international school in Tokyo.');
+  return renderPage({
+    title: `Guides · ${site.name}`,
+    description: 'Honest guides to the IB and university admissions for international students — by an incoming Cambridge HSPS student.',
+    canonicalPath: '/guides/',
+    bodyClass: 'page-guides',
+    content: `<article class="page-article">${intro}${renderEntries(
+      guides.map((g) => ({ title: g.title, href: `/guides/${g.slug}/`, summary: g.metaDescription }))
+    )}</article>`,
+    ogType: 'website',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      name: `${site.name} Guides`,
+      description: 'Guides to the IB and university admissions for international students.',
+    },
+  });
+}
+
+function renderGuideArticle(g) {
+  const related = guides.filter((x) => x.slug !== g.slug).slice(0, 4);
+  const faqBlock =
+    Array.isArray(g.faq) && g.faq.length
+      ? renderSection(
+          'Frequently asked questions',
+          `<div class="prose">${g.faq.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join('')}</div>`,
+          'faq'
+        )
+      : '';
+  const body = `
+    ${renderIntro(g.title, g.metaDescription)}
+    ${renderProse(g.intro || [])}
+    ${(g.sections || []).map((s) => renderSection(s.h2, renderProse(s.paragraphs || []))).join('')}
+    ${faqBlock}
+    ${g.takeaway ? renderSection('The takeaway', renderProse([g.takeaway])) : ''}
+    <aside class="guide-cta">
+      <p>Run a tutoring or admissions agency? <a href="${attr(ELEVATEOS_CTA)}">ElevateOS</a> turns a tutor's 60-second note into a parent-ready report in seconds.</p>
+    </aside>
+    ${renderSection(
+      'Keep reading',
+      renderEntries(related.map((r) => ({ title: r.title, href: `/guides/${r.slug}/`, summary: r.metaDescription })))
+    )}
+  `;
+  return renderPage({
+    title: `${g.title} · ${site.name}`,
+    description: g.metaDescription,
+    canonicalPath: `/guides/${g.slug}/`,
+    bodyClass: 'page-post',
+    content: `<article class="page-article">${body}</article>`,
+    ogType: 'article',
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: g.title,
+        datePublished: g.dateIso || today,
+        dateModified: today,
+        author: { '@type': 'Person', name: site.fullName || site.author, url: site.url },
+        publisher: { '@type': 'Organization', name: site.name, url: site.url },
+        description: g.metaDescription,
+        mainEntityOfPage: `${site.url}/guides/${g.slug}/`,
+      },
+      ...(Array.isArray(g.faq) && g.faq.length
+        ? [
+            {
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: g.faq.map((f) => ({
+                '@type': 'Question',
+                name: f.q,
+                acceptedAnswer: { '@type': 'Answer', text: f.a },
+              })),
+            },
+          ]
+        : []),
+    ],
+  });
+}
+
 function renderAwards() {
   const intro = renderIntro('Awards & Certifications', 'Academic profile, recognition, and certifications.');
 
@@ -621,11 +722,13 @@ ${site.contactLinks.map((link) => `- ${link.label}: ${link.href}`).join('\n')}
 function renderSitemap() {
   const entries = [
     '/',
+    '/guides/',
     '/about/',
     '/projects/',
     '/research/',
     '/awards-certifications/',
     '/contact/',
+    ...guides.map((g) => `/guides/${g.slug}/`),
     ...site.research.map((post) => `/research/${post.slug}/`),
   ];
 
@@ -678,7 +781,7 @@ async function cleanupMediaAssets() {
 }
 
 async function cleanupGeneratedRoutes() {
-  const routeDirs = ['about', 'projects', 'research', 'awards-certifications', 'contact', 'portfolio', 'blog', 'awards'];
+  const routeDirs = ['about', 'projects', 'research', 'awards-certifications', 'contact', 'portfolio', 'blog', 'awards', 'guides'];
 
   await Promise.all(routeDirs.map((dir) => rm(path.join(root, dir), { recursive: true, force: true })));
 }

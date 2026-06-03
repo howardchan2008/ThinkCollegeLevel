@@ -3,8 +3,12 @@ const cambridgeUrl = 'https://www.cam.ac.uk/';
 const elevateosUrl = 'https://elevateos.org';
 const crystalcenturyUrl = 'https://crystalcentury.com';
 const pulseUrl = 'https://pulse-kiwanis-2026-309064718968.us-west1.run.app/';
+const priormovesUrl = 'https://priormoves.com';
+const nobillUrl = 'https://nobill.app';
+const tatemoriUrl = 'https://tatemori.com';
 const linkedinUrl = 'https://www.linkedin.com/in/howardchan2008/';
-const githubUrl = 'https://github.com/imjusthoward/';
+const codebergUrl = 'https://codeberg.org/imjusthoward';
+const gitlabUrl = 'https://gitlab.com/howard53';
 const wantedlyUrl = 'https://www.wantedly.com/id/chakhang_chan';
 const facebookUrl = 'https://www.facebook.com/imjusthoward';
 const instagramUrl = 'https://www.instagram.com/imjusthoward/';
@@ -30,7 +34,7 @@ export const site = {
     'Incoming Cambridge HSPS student building technical systems for education, service operations, and institutional coordination.',
   homeParagraphs: [
     'I work on problems where coordination breaks first. My role is usually the same: map the workflow, identify the friction, and build something people can actually use.',
-    'Current work includes ElevateOS, Pulse Manila 2026, Katalyst, and research on communication, cognition, and institutional systems.',
+    'Current work includes ElevateOS, Prior Moves, Tatemori, nobill, Pulse Manila 2026, and research on communication, cognition, and institutional systems.',
     'Long term, I want to build at the point where institutions, incentives, and technical systems meet, whether through company-building and venture or through early-career finance paths that sharpen commercial judgment and execution.',
   ],
   homePillars: [
@@ -277,6 +281,45 @@ export const site = {
             'Turns coordination into reusable systems instead of a one-off spreadsheet or chat thread.',
           ],
         },
+        {
+          title: 'Prior Moves',
+          meta: 'Active',
+          summary:
+            'Live tool that predicts the next moves of well-known investors by modelling 13F filings, then tracks each call against what actually happened.',
+          href: priormovesUrl,
+          id: 'prior-moves',
+          details: [
+            'Mirrors super-investor portfolios and forecasts their most likely next buys.',
+            'Pairs forward predictions with a public track record and a clear disclaimer layer — research and education only, never trade execution.',
+            'The public surface of a broader quantitative-research system spanning data pipelines, calibration, and backtesting.',
+          ],
+        },
+        {
+          title: 'Tatemori',
+          meta: 'Active',
+          summary:
+            'B2B tool helping Japanese organisations operationalize the October 2026 kasuhara (customer-harassment) law and protect frontline staff.',
+          href: tatemoriUrl,
+          id: 'tatemori',
+          details: [
+            'Turns a hard regulatory deadline into a concrete operating workflow for retail, hospitality, and BPO teams.',
+            'Frames customer-harassment defense as a systems and continuity problem, not just a policy document.',
+            'Early-stage venture with a defined Japanese B2B audience and a free pilot offer.',
+          ],
+        },
+        {
+          title: 'nobill',
+          meta: 'Prototype',
+          summary:
+            'Local-first subscription tracker that scans Gmail receipts for recurring charges and links straight to each merchant’s cancel page.',
+          href: nobillUrl,
+          id: 'nobill',
+          details: [
+            'Keeps all data on the user’s machine in local storage rather than a cloud account.',
+            'Surfaces monthly and yearly spend so recurring charges are visible at a glance.',
+            'Privacy-first alternative to cloud-based subscription managers.',
+          ],
+        },
       ],
     },
     {
@@ -370,20 +413,25 @@ export const site = {
     },
   ],
   contactIntro:
-    'GitHub and Wantedly are the clearest proof of the work. Email is best for longer messages. WhatsApp is for quick coordination.',
+    'Codeberg and Wantedly are the clearest proof of the work. Email is best for longer messages. WhatsApp is for quick coordination.',
   homeLinks: [
-    { label: 'GitHub', href: githubUrl },
+    { label: 'Codeberg', href: codebergUrl },
+    { label: 'GitLab', href: gitlabUrl },
     { label: 'Wantedly', href: wantedlyUrl },
     { label: 'ElevateOS', href: elevateosUrl },
     { label: 'LinkedIn', href: linkedinUrl },
     { label: 'Email', href: emailUrl },
   ],
   contactLinks: [
-    { label: 'GitHub', href: githubUrl },
+    { label: 'Codeberg', href: codebergUrl },
+    { label: 'GitLab', href: gitlabUrl },
     { label: 'Wantedly', href: wantedlyUrl },
     { label: 'LinkedIn', href: linkedinUrl },
     { label: 'Email', href: emailUrl },
     { label: 'ElevateOS', href: elevateosUrl },
+    { label: 'Prior Moves', href: priormovesUrl },
+    { label: 'Tatemori', href: tatemoriUrl },
+    { label: 'nobill', href: nobillUrl },
     { label: 'Kiwanis Pulse @ Manila Convention 2026', href: pulseUrl },
     { label: 'Crystal Century', href: crystalcenturyUrl },
     { label: 'WhatsApp', href: whatsappUrl },
@@ -391,7 +439,8 @@ export const site = {
     { label: 'Instagram', href: instagramUrl },
   ],
   footerLinks: [
-    { label: 'GitHub', href: githubUrl },
+    { label: 'Codeberg', href: codebergUrl },
+    { label: 'GitLab', href: gitlabUrl },
     { label: 'Wantedly', href: wantedlyUrl },
     { label: 'LinkedIn', href: linkedinUrl },
     { label: 'Email', href: emailUrl },
@@ -400,7 +449,8 @@ export const site = {
     {
       group: 'Core / Professional',
       items: [
-        { label: 'GitHub', href: githubUrl },
+        { label: 'Codeberg', href: codebergUrl },
+        { label: 'GitLab', href: gitlabUrl },
         { label: 'Wantedly', href: wantedlyUrl },
         { label: 'LinkedIn', href: linkedinUrl },
         { label: 'Email', href: emailUrl },
@@ -410,6 +460,9 @@ export const site = {
       group: 'Live / Projects',
       items: [
         { label: 'ElevateOS', href: elevateosUrl },
+        { label: 'Prior Moves', href: priormovesUrl },
+        { label: 'Tatemori', href: tatemoriUrl },
+        { label: 'nobill', href: nobillUrl },
         { label: 'Kiwanis Pulse @ Manila Convention 2026', href: pulseUrl },
         { label: 'Crystal Century', href: crystalcenturyUrl },
       ],
