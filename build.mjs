@@ -26,6 +26,8 @@ async function main() {
   await writeOutput('_redirects', renderRedirects());
   await writeOutput('robots.txt', renderRobots());
   await writeOutput('sitemap.xml', renderSitemap());
+  await writeOutput('privacy/index.html', renderPrivacy());
+  await writeOutput('terms/index.html', renderTerms());
   await writeOutput('CNAME', 'thinkcollegelevel.com\n');
 }
 
@@ -307,6 +309,72 @@ function renderHome() {
   });
 }
 
+function renderLegal({ title, slug, description, lead, blocks }) {
+  const content = `<main class="page" id="main">
+    <article class="article-wrap">
+      <header class="article-head">
+        <div class="eyebrow">Legal</div>
+        <h1>${esc(title)}</h1>
+        <p class="lead">${esc(lead)}</p>
+        <div class="article-meta">Last updated ${today}</div>
+      </header>
+      <div class="article-main">
+        ${blocks.map((b) => `<h2>${esc(b.h2)}</h2>${b.ps.map((p) => `<p>${p}</p>`).join('')}`).join('\n')}
+      </div>
+    </article>
+  </main>`;
+  return renderPage({
+    title: `${title} · Think College Level`,
+    description,
+    canonicalPath: `/${slug}/`,
+    content,
+    jsonLd: { '@context': 'https://schema.org', '@type': 'WebPage', name: title, url: `${site.url}/${slug}/`, description },
+  });
+}
+
+function renderPrivacy() {
+  const contact = `<a class="tcl-link" href="${HOWARD}/contact/">howardchan.me/contact</a>`;
+  return renderLegal({
+    title: 'Privacy Policy',
+    slug: 'privacy',
+    description: 'How Think College Level handles data. We run a static educational blog, collect no personal data directly, and never sell information.',
+    lead: 'Think College Level is a static educational blog. We collect no personal data directly, run no user accounts, and never sell your information.',
+    blocks: [
+      { h2: 'Who we are', ps: [`Think College Level (thinkcollegelevel.com) is an independent educational blog written by Chak Hang (Howard) Chan. Questions about this policy: ${contact}.`] },
+      { h2: 'Information we collect', ps: [
+        'We do not operate accounts, logins, comment forms, or newsletters, so we collect no personal data from you directly.',
+        'Our host (Cloudflare Pages) automatically processes standard server request data — IP address, browser user-agent, and timestamp — to deliver pages and protect against abuse. We do not combine this with any identifying information.',
+        'If aggregate, privacy-respecting analytics are enabled, they record only anonymous page-view counts and never build a profile of you.',
+      ] },
+      { h2: 'Cookies', ps: ['We set no advertising or cross-site tracking cookies. Any cookies present are strictly functional (set by the host to serve and secure the site).'] },
+      { h2: 'Third-party services', ps: [
+        'The site is hosted on Cloudflare Pages, which processes request data under its own privacy terms.',
+        'We publish our own articles to social platforms (Pinterest, Bluesky, Mastodon, and X) using our own accounts and those platforms’ official APIs. This is outbound publishing of our content — it does not transmit any data about you.',
+      ] },
+      { h2: 'Children’s privacy', ps: ['Our content is written for students aged 16 and older and their families. We do not knowingly collect personal data from children under 13.'] },
+      { h2: 'Your rights', ps: [`Because we hold no personal data about you, there is nothing to access, correct, or delete. For any privacy question, contact us at ${contact}.`] },
+      { h2: 'Changes to this policy', ps: ['We may update this policy from time to time. The effective date above always reflects the current version.'] },
+    ],
+  });
+}
+
+function renderTerms() {
+  const contact = `<a class="tcl-link" href="${HOWARD}/contact/">howardchan.me/contact</a>`;
+  return renderLegal({
+    title: 'Terms of Use',
+    slug: 'terms',
+    description: 'Terms governing use of Think College Level. Content is educational and provided as-is, with no guarantee of any admissions outcome.',
+    lead: 'By using Think College Level, you agree to these terms. Our content is educational and provided as-is.',
+    blocks: [
+      { h2: 'Educational content only', ps: ['All guides are general educational information based on personal experience. They are not professional admissions, legal, or financial advice, and we make no guarantee of any examination result or admissions outcome.'] },
+      { h2: 'Intellectual property', ps: ['Articles and original materials are owned by the author. You may read and share links freely; republishing full content without permission is not allowed.'] },
+      { h2: 'External links', ps: ['We link to third-party sites for convenience and are not responsible for their content or practices.'] },
+      { h2: 'Changes', ps: ['We may revise these terms at any time; the effective date above reflects the current version.'] },
+      { h2: 'Contact', ps: [`Questions about these terms: ${contact}.`] },
+    ],
+  });
+}
+
 function renderNotFound() {
   const content = `<main class="page" id="main"><section class="index-hero"><div class="eyebrow">404</div><h1>Page not found.</h1><p class="lead">Try the <a class="tcl-link" href="/guides/">guides</a>.</p></section></main>`;
   return renderPage({ title: 'Not found · Think College Level', description: 'Page not found.', canonicalPath: '/404/', content, jsonLd: { '@context': 'https://schema.org', '@type': 'WebPage', name: 'Not found' } });
@@ -323,7 +391,7 @@ function renderRedirects() {
 }
 function renderRobots() { return `User-agent: *\nAllow: /\nSitemap: ${site.url}/sitemap.xml\n`; }
 function renderSitemap() {
-  const routes = ['/', '/guides/', ...guides.map((g) => `/guides/${g.slug}/`)];
+  const routes = ['/', '/guides/', ...guides.map((g) => `/guides/${g.slug}/`), '/privacy/', '/terms/'];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${routes.map((r) => `  <url><loc>${site.url}${r}</loc><lastmod>${today}</lastmod><changefreq>${r === '/' || r === '/guides/' ? 'weekly' : 'monthly'}</changefreq><priority>${r === '/' ? '1.0' : r === '/guides/' ? '0.9' : '0.7'}</priority></url>`).join('\n')}
@@ -332,7 +400,7 @@ ${routes.map((r) => `  <url><loc>${site.url}${r}</loc><lastmod>${today}</lastmod
 }
 
 async function cleanupGeneratedRoutes() {
-  for (const dir of ['about', 'projects', 'research', 'awards-certifications', 'contact', 'portfolio', 'blog', 'awards', 'guides']) {
+  for (const dir of ['about', 'projects', 'research', 'awards-certifications', 'contact', 'portfolio', 'blog', 'awards', 'guides', 'privacy', 'terms']) {
     await rm(path.join(root, dir), { recursive: true, force: true });
   }
 }
