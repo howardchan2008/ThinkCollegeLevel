@@ -8,7 +8,8 @@ Creds from macOS Keychain: x-api-key, x-api-secret, x-access-token, x-access-sec
 import json, os, sys, time, hmac, hashlib, base64, urllib.parse, urllib.request, subprocess, argparse, secrets
 
 SITE = "https://thinkcollegelevel.com"
-STATE = os.path.join(os.path.dirname(__file__), ".x-posted")
+HERE = os.path.dirname(__file__)
+STATE = os.path.join(HERE, ".x-posted")
 def kc(s):
     return subprocess.run(["security", "find-generic-password", "-s", s, "-w"],
                           capture_output=True, text=True).stdout.strip()
@@ -50,12 +51,38 @@ def oauth1_header(method, url, params, ck, cs, tok, ts):
     oauth["oauth_signature"] = sig
     return "OAuth " + ", ".join(f'{urllib.parse.quote(k,"")}="{urllib.parse.quote(v,"")}"' for k, v in oauth.items())
 
-def post_tweet(text):
+def upload_media_x(path, ck, cs, tok, ts):
+    data = open(path, "rb").read()
+    boundary = "----tcl" + secrets.token_hex(8)
+    body = f'--{boundary}\r\nContent-Disposition: form-data; name="media"; filename="card.png"\r\nContent-Type: image/png\r\n\r\n'.encode()
+    body += data + f"\r\n--{boundary}--\r\n".encode()
+    url = "https://upload.twitter.com/1.1/media/upload.json"
+    hdr = oauth1_header("POST", url, {}, ck, cs, tok, ts)
+    req = urllib.request.Request(url, data=body, method="POST",
+                                 headers={"Authorization": hdr, "Content-Type": f"multipart/form-data; boundary={boundary}"})
+    try:
+        with urllib.request.urlopen(req, timeout=40) as r:
+            return r.status, json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()
+
+def post_tweet(text, slug):
     ck, cs = kc("x-api-key"), kc("x-api-secret")
     tok, ts = kc("x-access-token"), kc("x-access-secret")
+    media_ids = []
+    img = os.path.join(HERE, "cards", f"{slug}.png")
+    if os.path.exists(img):
+        mc, mr = upload_media_x(img, ck, cs, tok, ts)
+        if mc == 200 and isinstance(mr, dict) and mr.get("media_id_string"):
+            media_ids = [mr["media_id_string"]]
+        else:
+            print(f"(x media upload {mc}: {str(mr)[:140]}; posting text-only)")
     url = "https://api.twitter.com/2/tweets"
+    payload = {"text": text}
+    if media_ids:
+        payload["media"] = {"media_ids": media_ids}
     hdr = oauth1_header("POST", url, {}, ck, cs, tok, ts)
-    body = json.dumps({"text": text}).encode()
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(url, data=body, method="POST",
                                  headers={"Authorization": hdr, "Content-Type": "application/json"})
     try:
@@ -85,7 +112,7 @@ def main():
     text = compose(g)
     print(f"--- tweet ({len(text)} chars) · {g['slug']} ---\n{text}\n---")
     if a.post:
-        code, resp = post_tweet(text)
+        code, resp = post_tweet(text, g["slug"])
         print(f"POST {code}: {resp[:300]}")
         if code == 201 and a.next:
             with open(STATE, "a") as f:

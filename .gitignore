@@ -2,3 +2,9 @@ dad-phone-digest-*.md
 nobill-status-*.md
 *-status-2026-*.md
 gbrain-mirror-*.md
+cards/
+.x-posted
+.bsky-posted
+.masto-posted
+.pin-posted
+.pinterest-board

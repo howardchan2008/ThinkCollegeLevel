@@ -8,7 +8,8 @@ import json, os, sys, subprocess, argparse, urllib.request, urllib.error, dateti
 
 SITE = "https://thinkcollegelevel.com"
 PDS = "https://bsky.social"
-STATE = os.path.join(os.path.dirname(__file__), ".bsky-posted")
+HERE = os.path.dirname(__file__)
+STATE = os.path.join(HERE, ".bsky-posted")
 
 def kc(s):
     return subprocess.run(["security", "find-generic-password", "-s", s, "-w"],
@@ -39,7 +40,17 @@ def jpost(url, data, headers):
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode()
 
-def post_bsky(text, url):
+def upload_blob_bsky(jwt, path):
+    data = open(path, "rb").read()
+    req = urllib.request.Request(f"{PDS}/xrpc/com.atproto.repo.uploadBlob", data=data, method="POST",
+                                 headers={"Authorization": f"Bearer {jwt}", "Content-Type": "image/png"})
+    try:
+        with urllib.request.urlopen(req, timeout=40) as r:
+            return r.status, json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()
+
+def post_bsky(text, url, slug, alt):
     handle, pw = kc("bluesky-handle"), kc("bluesky-app-password")
     if not handle or not pw:
         return 0, "missing keychain creds (bluesky-handle / bluesky-app-password)"
@@ -56,6 +67,14 @@ def post_bsky(text, url):
     if start >= 0:
         rec["facets"] = [{"index": {"byteStart": start, "byteEnd": start + len(ub)},
                           "features": [{"$type": "app.bsky.richtext.facet#link", "uri": url}]}]
+    img = os.path.join(HERE, "cards", f"{slug}.png")
+    if os.path.exists(img):
+        bc, blob = upload_blob_bsky(jwt, img)
+        if bc == 200 and isinstance(blob, dict) and blob.get("blob"):
+            rec["embed"] = {"$type": "app.bsky.embed.images",
+                            "images": [{"alt": alt, "image": blob["blob"]}]}
+        else:
+            print(f"(bsky blob upload {bc}: {str(blob)[:140]}; posting without image)")
     return jpost(f"{PDS}/xrpc/com.atproto.repo.createRecord",
                  {"repo": did, "collection": "app.bsky.feed.post", "record": rec},
                  {"Authorization": f"Bearer {jwt}"})
@@ -79,9 +98,10 @@ def main():
     if not g:
         print("guide not found"); sys.exit(1)
     text, url = compose(g)
+    alt = f"{g['title']} — a Think College Level guide"
     print(f"--- bsky post ({len(text)} chars) · {g['slug']} ---\n{text}\n---")
     if a.post:
-        code, resp = post_bsky(text, url)
+        code, resp = post_bsky(text, url, g["slug"], alt)
         print(f"POST {code}: {str(resp)[:300]}")
         if code == 200 and a.next:
             with open(STATE, "a") as f:
