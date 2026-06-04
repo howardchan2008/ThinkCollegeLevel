@@ -6,860 +6,291 @@ const root = process.cwd();
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
 const guides = JSON.parse(await readFile(new URL('./guides-data.json', import.meta.url), 'utf8'));
 const ELEVATEOS_CTA = 'https://elevateos.org/partner-demo';
-
-// Shared Author/Person reference for E-E-A-T (Howard Chan, incoming Cambridge HSPS).
-const authorPerson = {
-  '@type': 'Person',
-  name: site.fullName || site.author,
-  url: site.url,
-  description: site.tagline,
-  alumniOf: ['University of Cambridge', 'K. International School Tokyo'],
-  sameAs: site.contactLinks.map((link) => link.href),
-};
-
-// BreadcrumbList JSON-LD from an ordered list of { name, route } crumbs.
-function breadcrumbLd(crumbs) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: crumbs.map((crumb, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      name: crumb.name,
-      item: urlFor(crumb.route),
-    })),
-  };
-}
-
-const navItems = [
-  { label: 'Home', href: '/' },
-  { label: 'Guides', href: '/guides/' },
-  { label: 'About', href: '/about/' },
-  { label: 'Projects', href: '/projects/' },
-  { label: 'Research', href: '/research/' },
-  { label: 'Awards & Certifications', href: '/awards-certifications/' },
-  { label: 'Contact', href: '/contact/' },
-];
-
-const canonicalPages = [
-  {
-    path: '/',
-    file: 'index.html',
-    title: site.name,
-    description: site.description,
-    bodyClass: 'page-home',
-    render: renderHome,
-  },
-  {
-    path: '/about/',
-    file: path.join('about', 'index.html'),
-    title: `About · ${site.name}`,
-    description: 'About Howard Chan.',
-    bodyClass: 'page-about',
-    render: renderAbout,
-  },
-  {
-    path: '/projects/',
-    file: path.join('projects', 'index.html'),
-    title: `Projects · ${site.name}`,
-    description: 'Products, civic initiatives, and infrastructure.',
-    bodyClass: 'page-projects',
-    render: renderProjects,
-  },
-  {
-    path: '/research/',
-    file: path.join('research', 'index.html'),
-    title: `Research · ${site.name}`,
-    description: 'Research on communication, cognition, and institutional systems.',
-    bodyClass: 'page-research',
-    render: renderResearchIndex,
-  },
-  {
-    path: '/awards-certifications/',
-    file: path.join('awards-certifications', 'index.html'),
-    title: `Awards & Certifications · ${site.name}`,
-    description: 'Academic profile, recognition, and certifications.',
-    bodyClass: 'page-awards',
-    render: renderAwards,
-  },
-  {
-    path: '/contact/',
-    file: path.join('contact', 'index.html'),
-    title: `Contact · ${site.name}`,
-    description: 'GitHub, Wantedly, LinkedIn, email, project links, and social links.',
-    bodyClass: 'page-contact',
-    render: renderContact,
-  },
-  {
-    path: '/404/',
-    file: '404.html',
-    title: `Not found · ${site.name}`,
-    description: 'The page you were looking for is not here.',
-    bodyClass: 'page-404',
-    render: renderNotFound,
-  },
-];
-
-const researchPages = site.research.map((item) => ({
-  path: `/research/${item.slug}/`,
-  file: path.join('research', item.slug, 'index.html'),
-  title: `${item.title} · ${site.name}`,
-  description: item.summary,
-  bodyClass: 'page-post',
-  render: () => renderResearchArticle(item),
-}));
-
-const guideIndexPage = {
-  path: '/guides/',
-  file: path.join('guides', 'index.html'),
-  title: `Guides · ${site.name}`,
-  description: 'Honest guides to the IB and UK/US/HK university admissions for international students.',
-  bodyClass: 'page-guides',
-  render: renderGuidesIndex,
-};
-
-const guidePages = guides.map((g) => ({
-  path: `/guides/${g.slug}/`,
-  file: path.join('guides', g.slug, 'index.html'),
-  title: `${g.title} · ${site.name}`,
-  description: g.metaDescription,
-  bodyClass: 'page-post',
-  render: () => renderGuideArticle(g),
-}));
-
-const legacyRedirectPages = [
-  {
-    path: '/portfolio/',
-    file: path.join('portfolio', 'index.html'),
-    title: `Projects · ${site.name}`,
-    target: '/projects/',
-  },
-  {
-    path: '/blog/',
-    file: path.join('blog', 'index.html'),
-    title: `Research · ${site.name}`,
-    target: '/research/',
-  },
-  {
-    path: '/awards/',
-    file: path.join('awards', 'index.html'),
-    title: `Awards & Certifications · ${site.name}`,
-    target: '/awards-certifications/',
-  },
-];
-
-const legacyResearchRedirects = site.research.map((item) => ({
-  path: `/blog/${item.slug}/`,
-  file: path.join('blog', item.slug, 'index.html'),
-  title: `${item.title} · ${site.name}`,
-  target: `/research/${item.slug}/`,
-}));
-
-await main();
+const HOWARD = 'https://howardchan.me';
 
 async function main() {
   await cleanupGeneratedRoutes();
-  await cleanupMediaAssets();
-
-  for (const page of [...canonicalPages, ...researchPages, guideIndexPage, ...guidePages]) {
-    await writeOutput(page.file, page.render(page));
-  }
-
-  for (const page of [...legacyRedirectPages, ...legacyResearchRedirects]) {
-    await writeOutput(page.file, renderRedirect(page.title, page.target));
-  }
-
+  for (const g of guides) await writeOutput(path.join('guides', g.slug, 'index.html'), renderGuideArticle(g));
+  await writeOutput('guides/index.html', renderGuidesIndex('/guides/'));
+  await writeOutput('index.html', renderGuidesIndex('/'));
+  await writeOutput('404.html', renderNotFound());
+  await writeOutput('_redirects', renderRedirects());
   await writeOutput('robots.txt', renderRobots());
-  await writeOutput('llms.txt', renderLlms());
   await writeOutput('sitemap.xml', renderSitemap());
   await writeOutput('CNAME', 'thinkcollegelevel.com\n');
 }
 
-function esc(input = '') {
-  return String(input)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+/* ---------------- helpers ---------------- */
+function esc(s = '') {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+const attr = esc;
+function urlFor(route) { return route === '/' ? `${site.url}/` : `${site.url}${route}`; }
+
+const THEMES = [
+  ['IB Diploma', /\bib\b|tok|extended-essay|internal-assessment|study-schedule|-ib-|ib-/],
+  ['UK & Oxbridge', /cambridge|oxford|oxbridge|ucas|hsps|personal-statement|supercurricular/],
+  ['US & Hong Kong', /\bsat\b|common-app|hku|hkust|uk-vs-us/],
+];
+function themeFor(slug) {
+  for (const [name, re] of THEMES) if (re.test(slug)) return name;
+  return 'Admissions & strategy';
+}
+const THEME_ORDER = ['IB Diploma', 'UK & Oxbridge', 'US & Hong Kong', 'Admissions & strategy'];
+
+function readMins(g) {
+  const words = [
+    ...(g.intro || []),
+    ...(g.sections || []).flatMap((s) => s.paragraphs || []),
+    ...(g.faq || []).flatMap((f) => [f.q, f.a]),
+    g.takeaway || '',
+  ].join(' ').split(/\s+/).filter(Boolean).length;
+  return Math.max(4, Math.round(words / 200));
 }
 
-function attr(input = '') {
-  return esc(input);
+const ICONS = {
+  'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+  'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  'arrow-right': '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+  'user-round': '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  'key-round': '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+  award: '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/>',
+  'graduation-cap': '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+  'map-pin': '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+};
+function icon(name) {
+  return `<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
 }
 
-function urlFor(route) {
-  return route === '/' ? `${site.url}/` : `${site.url}${route}`;
-}
-
-function renderLink(href, label, currentPath) {
-  const active = currentPath === href ? ' aria-current="page"' : '';
-  return `<a href="${attr(href)}"${active}>${esc(label)}</a>`;
-}
-
-function renderNav(currentPath) {
-  return navItems.map((item) => renderLink(item.href, item.label, currentPath)).join('');
-}
-
-function renderLogo() {
-  return `
-    <img
-      class="brand-mark"
-      src="${attr(site.logo.src)}"
-      alt="${attr(site.logo.alt)}"
-      width="1024"
-      height="921"
-      loading="eager"
-      decoding="async"
-    >
-  `;
-}
-
-function renderHeader(currentPath) {
-  return `
-    <header class="site-header">
-      <div class="site-header-inner">
-        <a class="brand" href="/">
-          ${renderLogo()}
-          <span class="brand-copy">
-            <strong>${esc(site.name)}</strong>
-            <small>${esc(site.tagline)}</small>
-          </span>
-        </a>
-        <nav class="site-nav" aria-label="Primary">
-          ${renderNav(currentPath)}
-        </nav>
-      </div>
-    </header>
-  `;
+/* ---------------- chrome ---------------- */
+function renderHeader(current) {
+  const nav = [['Guides', '/guides/'], ['About', `${HOWARD}/about/`], ['Contact', `${HOWARD}/contact/`]];
+  return `<header class="site-header"><div class="header-inner">
+    <a class="brand" href="/">
+      <img src="/assets/media/hc-logo-ink.png" alt="" width="34" height="31" decoding="async">
+      <span class="wm"><strong>Think College Level</strong><small>IB &amp; university admissions, honestly</small></span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      ${nav.map(([l, h]) => `<a href="${attr(h)}"${(current === h ? ' class="active"' : '')}>${esc(l)}</a>`).join('')}
+      <a class="nav-search" href="/guides/" aria-label="Browse guides">${icon('search')}</a>
+    </nav>
+  </div></header>`;
 }
 
 function renderFooter() {
-  return `
-    <footer class="site-footer">
-      <div class="site-footer-inner">
-        <p>${esc(site.author)}, ${esc(site.location)}</p>
-        <p class="footer-links">
-          ${site.footerLinks.map((link) => `<a href="${attr(link.href)}">${esc(link.label)}</a>`).join('')}
-        </p>
-        <p>© 2026 ${esc(site.author)}</p>
-      </div>
-    </footer>
-  `;
+  const cols = [
+    ['Guides', [['All guides', '/guides/'], ['Get a 45 in the IB', '/guides/how-to-get-a-45-in-the-ib/'], ['Cambridge statement', '/guides/cambridge-personal-statement-guide/']]],
+    ['Howard', [['Personal site', HOWARD], ['ElevateOS', 'https://elevateos.org'], ['Contact', `${HOWARD}/contact/`]]],
+  ];
+  return `<footer class="site-footer"><div class="footer-inner">
+    <div class="footer-brand">
+      <strong>Think College Level</strong>
+      <p>Honest guides to the IB Diploma and UK/US/HK university admissions, by Howard Chan — predicted IB 45, incoming Cambridge HSPS.</p>
+    </div>
+    <div class="footer-cols">
+      ${cols.map(([h, items]) => `<div class="footer-col"><h4>${esc(h)}</h4>${items.map(([l, hr]) => `<a href="${attr(hr)}">${esc(l)}</a>`).join('')}</div>`).join('')}
+    </div>
+    <div class="footer-legal">© 2026 Howard Chan · Tokyo · thinkcollegelevel.com</div>
+  </div></footer>`;
 }
 
-function renderPage({
-  title,
-  description,
-  canonicalPath,
-  bodyClass,
-  content,
-  jsonLd,
-  ogType = 'website',
-  metaRobots,
-  ogImage = site.ogImage,
-}) {
-  const imageUrl = ogImage ? (ogImage.startsWith('http') ? ogImage : `${site.url}${ogImage}`) : '';
+function renderPage({ title, description, canonicalPath, content, jsonLd, ogType = 'website' }) {
+  const ld = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="${attr(description)}">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="author" content="${attr(site.fullName || site.author)}">
+  <meta name="theme-color" content="#FAF6EF">
   <link rel="canonical" href="${attr(urlFor(canonicalPath))}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/assets/styles.css">
-  <link rel="icon" href="/favicon.png" type="image/png">
-  <link rel="apple-touch-icon" href="/favicon.png">
-  ${metaRobots ? `<meta name="robots" content="${attr(metaRobots)}">` : ''}
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.png" sizes="any">
   <meta property="og:type" content="${attr(ogType)}">
-  <meta property="og:site_name" content="${attr(site.name)}">
-  <meta property="og:locale" content="en_US">
   <meta property="og:title" content="${attr(title)}">
   <meta property="og:description" content="${attr(description)}">
   <meta property="og:url" content="${attr(urlFor(canonicalPath))}">
-  ${imageUrl ? `<meta property="og:image" content="${attr(imageUrl)}">` : ''}
-  <meta name="twitter:card" content="${imageUrl ? 'summary_large_image' : 'summary'}">
-  <meta name="twitter:title" content="${attr(title)}">
-  <meta name="twitter:description" content="${attr(description)}">
-  ${imageUrl ? `<meta name="twitter:image" content="${attr(imageUrl)}">` : ''}
   <title>${esc(title)}</title>
-  <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+  <script type="application/ld+json">${JSON.stringify(ld.length === 1 ? ld[0] : ld)}</script>
 </head>
-<body class="${attr(bodyClass)}">
-  <a class="skip-link" href="#main-content">Skip to content</a>
-  <div class="page-shell">
-    ${renderHeader(canonicalPath)}
-    <main id="main-content" class="page-main">
-      ${content}
-    </main>
-    ${renderFooter()}
-  </div>
+<body class="tcl-app">
+  <a class="skip-link" href="#main">Skip to content</a>
+  ${renderHeader(canonicalPath)}
+  ${content}
+  ${renderFooter()}
+  <script src="/assets/app.js" defer></script>
 </body>
 </html>
 `;
 }
 
-function renderRedirect(title, targetPath) {
-  const targetUrl = urlFor(targetPath);
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0; url=${attr(targetUrl)}">
-  <meta name="robots" content="noindex,follow">
-  <link rel="canonical" href="${attr(targetUrl)}">
-  <title>${esc(title)}</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #fff;
-      color: #000;
-    }
-    main {
-      max-width: 42rem;
-      margin: 0 auto;
-      padding: 2rem 1.25rem;
-    }
-    a {
-      color: inherit;
-    }
-  </style>
-</head>
-<body>
-  <main>
-    <p>Redirecting to <a href="${attr(targetUrl)}">${esc(title)}</a>.</p>
-    <script>location.replace(${JSON.stringify(targetUrl)});</script>
-  </main>
-</body>
-</html>
-`;
-}
-
-function renderIntro(title, subtitle) {
-  return `
-    <header class="page-intro">
-      <h1>${esc(title)}</h1>
-      ${subtitle ? `<p class="intro-subtitle">${esc(subtitle)}</p>` : ''}
-    </header>
-  `;
-}
-
-function renderSection(title, body, id) {
-  return `
-    <section class="page-section"${id ? ` id="${attr(id)}"` : ''}>
-      <div class="section-head">
-        <h2>${esc(title)}</h2>
+/* ---------------- guides index ---------------- */
+function renderGuidesIndex(canonicalPath) {
+  const enriched = guides.map((g) => ({ ...g, theme: themeFor(g.slug) }));
+  const byTheme = THEME_ORDER.map((t) => [t, enriched.filter((g) => g.theme === t)]).filter(([, gs]) => gs.length);
+  const chips = `<div class="filter-bar" role="tablist" aria-label="Filter by topic">
+    <button class="chip on" data-theme="all">All</button>
+    ${byTheme.map(([t]) => `<button class="chip" data-theme="${attr(t)}">${esc(t)}</button>`).join('')}
+  </div>`;
+  const blocks = byTheme.map(([t, gs]) => `
+    <section class="theme-block" data-theme="${attr(t)}">
+      <div class="theme-head"><h2>${esc(t)}</h2><span class="count">${gs.length} guide${gs.length > 1 ? 's' : ''}</span><span class="theme-rule"></span></div>
+      <div class="guide-grid">
+        ${gs.map((g) => `<a class="guide-card" href="/guides/${attr(g.slug)}/">
+          <span class="gc-theme">${esc(t)}</span>
+          <h3>${esc(g.title)}</h3>
+          <p>${esc(g.metaDescription)}</p>
+          <span class="gc-more">Read guide ${icon('arrow-right')}</span>
+        </a>`).join('')}
       </div>
-      ${body}
+    </section>`).join('');
+  const content = `<main class="page" id="main">
+    <section class="index-hero">
+      <div class="eyebrow">Think College Level</div>
+      <h1>Honest guides to the IB and university admissions.</h1>
+      <p class="lead">Subject-by-subject IB strategy, UK/US/HK applications, and the things admissions tutors actually look for — written by an incoming Cambridge student who did it from an international school in Tokyo.</p>
     </section>
-  `;
-}
-
-function renderProse(paragraphs) {
-  return `<div class="prose">${paragraphs.map((paragraph) => `<p>${esc(paragraph)}</p>`).join('')}</div>`;
-}
-
-function renderPillars(items) {
-  return `
-    <div class="pillar-grid">
-      ${items
-        .map(
-          (item) => `
-            <article class="pillar">
-              <h3>${esc(item.title)}</h3>
-              <p>${esc(item.summary)}</p>
-            </article>
-          `
-        )
-        .join('')}
-    </div>
-  `;
-}
-
-function renderEntries(items) {
-  return `
-    <div class="entry-list">
-      ${items
-        .map(
-          (item) => `
-            <article class="entry"${item.id ? ` id="${attr(item.id)}"` : ''}>
-              <div class="entry-head">
-                <h3>${item.href ? `<a href="${attr(item.href)}">${esc(item.title)}</a>` : esc(item.title)}</h3>
-                ${item.meta ? `<span class="entry-meta">${esc(item.meta)}</span>` : ''}
-              </div>
-              ${item.org ? `<p class="entry-org">${esc(item.org)}</p>` : ''}
-              ${item.summary ? `<p class="entry-summary">${esc(item.summary)}</p>` : ''}
-              ${
-                Array.isArray(item.details) && item.details.length
-                  ? `<ul class="entry-points">${item.details.map((point) => `<li>${esc(point)}</li>`).join('')}</ul>`
-                  : ''
-              }
-            </article>
-          `
-        )
-        .join('')}
-    </div>
-  `;
-}
-
-function renderLinkRow(items) {
-  return `
-    <p class="link-row">
-      ${items.map((item) => `<a href="${attr(item.href)}">${esc(item.label)}</a>`).join('<span aria-hidden="true">·</span>')}
-    </p>
-  `;
-}
-
-function renderLinkGroups(groups) {
-  return `
-    <div class="link-groups">
-      ${groups
-        .map(
-          (group) => `
-            <section class="link-group">
-              <h3>${esc(group.group)}</h3>
-              ${renderLinkRow(group.items)}
-            </section>
-          `
-        )
-        .join('')}
-    </div>
-  `;
-}
-
-function renderHome() {
-  const intro = renderIntro(site.heroHeadline, site.homeSummary);
-
+    ${chips}
+    ${blocks}
+  </main>`;
   return renderPage({
-    title: site.name,
-    description: site.description,
-    canonicalPath: '/',
-    bodyClass: 'page-home',
-    content: `<article class="page-article">${intro}${renderProse(site.homeParagraphs)}${renderPillars(site.homePillars)}${renderLinkRow(site.homeLinks)}</article>`,
-    ogType: 'website',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'Person',
-      name: site.fullName || site.author,
-      url: site.url,
-      sameAs: site.contactLinks.map((link) => link.href),
-      alumniOf: ['University of Cambridge', 'K. International School Tokyo'],
-      description: site.tagline,
-    },
+    title: `Guides to the IB & University Admissions · Think College Level`,
+    description: 'Honest guides to the IB Diploma and UK/US/HK university admissions for international students, by an incoming Cambridge HSPS student.',
+    canonicalPath,
+    content,
+    jsonLd: { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Think College Level Guides', description: 'Guides to the IB and university admissions for international students.', url: site.url + '/guides/' },
   });
 }
 
-function renderAbout() {
-  const intro = renderIntro('About Me');
-
-  return renderPage({
-    title: `About · ${site.name}`,
-    description: 'About Howard Chan.',
-    canonicalPath: '/about/',
-    bodyClass: 'page-about',
-    content: `<article class="page-article">${intro}${renderProse(site.aboutParagraphs)}${renderSection(
-      'Professional Experience',
-      renderEntries(site.experience),
-      'experience'
-    )}${renderSection('Education', renderEntries(site.education), 'education')}${renderLinkRow(site.homeLinks)}</article>`,
-    ogType: 'website',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'ProfilePage',
-      mainEntity: {
-        '@type': 'Person',
-        name: site.fullName || site.author,
-        sameAs: site.contactLinks.map((link) => link.href),
-        description: site.tagline,
-      },
-    },
-  });
-}
-
-function renderProjects() {
-  const intro = renderIntro('Projects', 'Products, civic initiatives, and infrastructure built to work in real conditions.');
-
-  const sections = site.projects.map((group) =>
-    renderSection(group.group, renderEntries(group.items), group.group.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
-  );
-
-  return renderPage({
-    title: `Projects · ${site.name}`,
-    description: 'Products, civic initiatives, and infrastructure.',
-    canonicalPath: '/projects/',
-    bodyClass: 'page-projects',
-    content: `<article class="page-article">${intro}${sections.join('')}</article>`,
-    ogType: 'website',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'CollectionPage',
-      name: `${site.name} Projects`,
-      description: 'Products, civic initiatives, and infrastructure.',
-    },
-  });
-}
-
-function renderResearchIndex() {
-  const intro = renderIntro('Research', 'Research on communication, cognition, and institutional systems.');
-
-  return renderPage({
-    title: `Research · ${site.name}`,
-    description: 'Research on communication, cognition, and institutional systems.',
-    canonicalPath: '/research/',
-    bodyClass: 'page-research',
-    content: `<article class="page-article">${intro}${renderEntries(site.research)}</article>`,
-    ogType: 'website',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'CollectionPage',
-      name: `${site.name} Research`,
-      description: 'Research on communication, cognition, and institutional systems.',
-    },
-  });
-}
-
-function renderResearchArticle(post) {
-  const intro = renderIntro(post.title, post.summary);
-
-  return renderPage({
-    title: `${post.title} · ${site.name}`,
-    description: post.summary,
-    canonicalPath: `/research/${post.slug}/`,
-    bodyClass: 'page-post',
-    content: `<article class="page-article">${intro}${renderSection('Notes', renderProse(post.body), 'notes')}</article>`,
-    ogType: 'article',
-    jsonLd: [
-      {
-        '@context': 'https://schema.org',
-        '@type': 'ScholarlyArticle',
-        headline: post.title,
-        datePublished: post.dateIso || today,
-        author: authorPerson,
-        description: post.summary,
-        inLanguage: 'en',
-        mainEntityOfPage: `${site.url}/research/${post.slug}/`,
-      },
-      breadcrumbLd([
-        { name: 'Home', route: '/' },
-        { name: 'Research', route: '/research/' },
-        { name: post.title, route: `/research/${post.slug}/` },
-      ]),
-    ],
-  });
-}
-
-function renderGuidesIndex() {
-  const intro = renderIntro('Guides', 'Honest, specific guides to the IB and to UK, US, and Hong Kong university admissions — written by an incoming Cambridge HSPS student who did it from an international school in Tokyo.');
-  return renderPage({
-    title: `Guides · ${site.name}`,
-    description: 'Honest guides to the IB and university admissions for international students — by an incoming Cambridge HSPS student.',
-    canonicalPath: '/guides/',
-    bodyClass: 'page-guides',
-    content: `<article class="page-article">${intro}${renderEntries(
-      guides.map((g) => ({ title: g.title, href: `/guides/${g.slug}/`, summary: g.metaDescription }))
-    )}</article>`,
-    ogType: 'website',
-    jsonLd: [
-      {
-        '@context': 'https://schema.org',
-        '@type': 'CollectionPage',
-        name: `${site.name} Guides`,
-        description: 'Guides to the IB and university admissions for international students.',
-        author: authorPerson,
-        hasPart: guides.map((g) => ({
-          '@type': 'Article',
-          headline: g.title,
-          url: `${site.url}/guides/${g.slug}/`,
-        })),
-      },
-      breadcrumbLd([
-        { name: 'Home', route: '/' },
-        { name: 'Guides', route: '/guides/' },
-      ]),
-    ],
-  });
-}
-
+/* ---------------- guide article ---------------- */
 function renderGuideArticle(g) {
+  const theme = themeFor(g.slug);
+  const sections = g.sections || [];
   const related = guides.filter((x) => x.slug !== g.slug).slice(0, 4);
-  const faqBlock =
-    Array.isArray(g.faq) && g.faq.length
-      ? renderSection(
-          'Frequently asked questions',
-          `<div class="prose">${g.faq.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join('')}</div>`,
-          'faq'
-        )
-      : '';
-  const body = `
-    ${renderIntro(g.title, g.metaDescription)}
-    ${renderProse(g.intro || [])}
-    ${(g.sections || []).map((s) => renderSection(s.h2, renderProse(s.paragraphs || []))).join('')}
-    ${faqBlock}
-    ${g.takeaway ? renderSection('The takeaway', renderProse([g.takeaway])) : ''}
-    <aside class="guide-cta">
-      <p>Run a tutoring or admissions agency? <a href="${attr(ELEVATEOS_CTA)}">ElevateOS</a> turns a tutor's 60-second note into a parent-ready report in seconds.</p>
-    </aside>
-    ${renderSection(
-      'Keep reading',
-      renderEntries(related.map((r) => ({ title: r.title, href: `/guides/${r.slug}/`, summary: r.metaDescription })))
-    )}
-  `;
+  const toc = `<aside class="toc" aria-label="On this page">
+    <div class="toc-label">On this page</div>
+    <nav>${sections.map((s, i) => `<a href="#s${i}">${esc(s.h2)}</a>`).join('')}</nav>
+  </aside>`;
+  const author = `<div class="author-block">
+    <img class="avatar" src="/assets/media/pfp.png" alt="Howard Chan" width="54" height="54" decoding="async">
+    <div>
+      <strong>Howard Chan</strong>
+      <div class="role">Wrote this guide · international school, Tokyo</div>
+      <div class="creds">
+        <span class="cred">${icon('award')} IB 45 / 45 (predicted)</span>
+        <span class="cred">${icon('graduation-cap')} Incoming Cambridge HSPS</span>
+        <span class="cred">${icon('map-pin')} Tokyo · UK·US·HK</span>
+      </div>
+    </div>
+  </div>`;
+  const body = `<div class="prose">
+    ${(g.intro || []).map((p) => `<p>${esc(p)}</p>`).join('')}
+    ${sections.map((s, i) => `<section id="s${i}" data-idx="${i}">
+      <h2>${esc(s.h2)}</h2>
+      ${(s.paragraphs || []).map((p) => `<p>${esc(p)}</p>`).join('')}
+      ${i === 2 ? `<div class="ad-slot" aria-hidden="true">Reserved slot · never shifts layout</div>` : ''}
+    </section>`).join('')}
+  </div>`;
+  const faq = (g.faq && g.faq.length) ? `<section class="faq-section" aria-label="Frequently asked questions">
+    <h2>Frequently asked questions</h2>
+    ${g.faq.map((f, i) => `<div class="faq-item${i === 0 ? ' open' : ''}">
+      <button class="faq-q" aria-expanded="${i === 0}"><h3>${esc(f.q)}</h3>${icon('chevron-down')}</button>
+      <div class="faq-a"><div class="faq-a-inner">${esc(f.a)}</div></div>
+    </div>`).join('')}
+  </section>` : '';
+  const takeaway = g.takeaway ? `<section class="takeaway"><div class="hd">${icon('key-round')} The takeaway</div><p>${esc(g.takeaway)}</p></section>` : '';
+  const cta = `<aside class="elevate-cta">
+    <p><span class="ctx">For agencies · sponsor</span>Run a tutoring or admissions agency? ElevateOS turns a tutor's 60-second note into a parent-ready report in seconds.</p>
+    <a href="${attr(ELEVATEOS_CTA)}">See a demo ${icon('arrow-up-right')}</a>
+  </aside>`;
+  const relatedBlock = `<section class="related">
+    <div class="eyebrow">Keep reading</div>
+    <div class="related-grid">
+      ${related.map((r) => `<a class="guide-card" href="/guides/${attr(r.slug)}/">
+        <span class="gc-theme">${esc(themeFor(r.slug))}</span>
+        <h3>${esc(r.title)}</h3>
+        <span class="gc-more">Read guide ${icon('arrow-right')}</span>
+      </a>`).join('')}
+    </div>
+  </section>`;
+  const content = `<main class="page" id="main">
+    <article class="article-wrap">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="/">Home</a>${icon('chevron-right')}<a href="/guides/">Guides</a>${icon('chevron-right')}<span class="here">${esc(theme)}</span>
+      </nav>
+      <header class="article-head">
+        <div class="eyebrow">${esc(theme)}</div>
+        <h1>${esc(g.title)}</h1>
+        <p class="lead">${esc(g.metaDescription)}</p>
+        <div class="article-meta">${icon('user-round')} By Howard Chan <span class="dot">·</span> ${icon('clock')} ${readMins(g)} min read <span class="dot">·</span> Updated Jun 2026</div>
+      </header>
+      <div class="article-body">
+        ${toc}
+        <div class="article-main">
+          ${author}
+          ${body}
+          ${faq}
+          ${takeaway}
+          ${cta}
+          ${relatedBlock}
+        </div>
+      </div>
+    </article>
+  </main>`;
   return renderPage({
-    title: `${g.title} · ${site.name}`,
+    title: `${g.title} · Think College Level`,
     description: g.metaDescription,
     canonicalPath: `/guides/${g.slug}/`,
-    bodyClass: 'page-post',
-    content: `<article class="page-article">${body}</article>`,
     ogType: 'article',
+    content,
     jsonLd: [
-      {
-        '@context': 'https://schema.org',
-        '@type': 'Article',
-        headline: g.title,
-        datePublished: g.dateIso || today,
-        dateModified: g.dateModified || today,
-        author: authorPerson,
-        publisher: { '@type': 'Organization', name: site.name, url: site.url },
-        description: g.metaDescription,
-        inLanguage: 'en',
-        image: `${site.url}${site.ogImage}`,
-        mainEntityOfPage: `${site.url}/guides/${g.slug}/`,
-      },
-      breadcrumbLd([
-        { name: 'Home', route: '/' },
-        { name: 'Guides', route: '/guides/' },
-        { name: g.title, route: `/guides/${g.slug}/` },
-      ]),
-      ...(Array.isArray(g.faq) && g.faq.length
-        ? [
-            {
-              '@context': 'https://schema.org',
-              '@type': 'FAQPage',
-              mainEntity: g.faq.map((f) => ({
-                '@type': 'Question',
-                name: f.q,
-                acceptedAnswer: { '@type': 'Answer', text: f.a },
-              })),
-            },
-          ]
-        : []),
+      { '@context': 'https://schema.org', '@type': 'Article', headline: g.title, datePublished: g.dateIso || today, dateModified: today, author: { '@type': 'Person', name: site.fullName || site.author, url: HOWARD }, publisher: { '@type': 'Organization', name: 'Think College Level', url: site.url }, description: g.metaDescription, mainEntityOfPage: `${site.url}/guides/${g.slug}/` },
+      ...(g.faq && g.faq.length ? [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: g.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }] : []),
     ],
-  });
-}
-
-function renderAwards() {
-  const intro = renderIntro('Awards & Certifications', 'Academic profile, recognition, and certifications.');
-
-  const sections = site.awardsCertifications.map((group, index) =>
-    renderSection(group.group, renderEntries(group.items), index === 0 ? 'academic-profile' : group.group.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
-  );
-
-  return renderPage({
-    title: `Awards & Certifications · ${site.name}`,
-    description: 'Academic profile, recognition, and certifications.',
-    canonicalPath: '/awards-certifications/',
-    bodyClass: 'page-awards',
-    content: `<article class="page-article">${intro}${sections.join('')}</article>`,
-    ogType: 'website',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'CollectionPage',
-      name: `${site.name} Awards and Certifications`,
-      description: 'Academic profile, recognition, and certifications.',
-    },
-  });
-}
-
-function renderContact() {
-  const intro = renderIntro('Contact', site.contactIntro);
-
-  return renderPage({
-    title: `Contact · ${site.name}`,
-    description: 'GitHub, Wantedly, LinkedIn, email, project links, and social links.',
-    canonicalPath: '/contact/',
-    bodyClass: 'page-contact',
-    content: `<article class="page-article">${intro}${renderLinkGroups(site.linkGroups)}</article>`,
-    ogType: 'website',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'ContactPage',
-      mainEntity: {
-        '@type': 'Person',
-        name: site.fullName || site.author,
-        sameAs: site.contactLinks.map((link) => link.href),
-      },
-    },
   });
 }
 
 function renderNotFound() {
-  const intro = renderIntro('Page not found', 'Use Home, About, Projects, Research, Awards & Certifications, or Contact.');
-
-  return renderPage({
-    title: `Not found · ${site.name}`,
-    description: 'The page you were looking for is not here.',
-    canonicalPath: '/404/',
-    bodyClass: 'page-404',
-    content: `<article class="page-article">${intro}${renderSection(
-      'Pages',
-      renderLinkGroups([
-        {
-          group: 'Navigation',
-          items: navItems,
-        },
-      ])
-    )}</article>`,
-    ogType: 'website',
-    metaRobots: 'noindex,follow',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'WebPage',
-      name: `Not found - ${site.name}`,
-    },
-  });
+  const content = `<main class="page" id="main"><section class="index-hero"><div class="eyebrow">404</div><h1>Page not found.</h1><p class="lead">Try the <a class="tcl-link" href="/guides/">guides</a>.</p></section></main>`;
+  return renderPage({ title: 'Not found · Think College Level', description: 'Page not found.', canonicalPath: '/404/', content, jsonLd: { '@context': 'https://schema.org', '@type': 'WebPage', name: 'Not found' } });
 }
 
-function renderRobots() {
-  return `User-agent: *
-Allow: /
-Sitemap: ${site.url}/sitemap.xml
+/* ---------------- static files ---------------- */
+function renderRedirects() {
+  return `/about/*                  ${HOWARD}/about/:splat                  301
+/projects/*               ${HOWARD}/projects/:splat               301
+/research/*               ${HOWARD}/research/:splat               301
+/awards-certifications/*  ${HOWARD}/awards-certifications/:splat  301
+/contact/*                ${HOWARD}/contact/:splat                301
 `;
 }
-
-function renderLlms() {
-  return `# ${site.name}
-
-${site.tagline}
-
-Howard Chan's public profile, projects, research, awards & certifications, and contact links.
-
-## Pages
-- Home: ${site.url}/
-- About: ${site.url}/about/
-- Projects: ${site.url}/projects/
-- Research: ${site.url}/research/
-- Awards & Certifications: ${site.url}/awards-certifications/
-- Contact: ${site.url}/contact/
-
-## About
-- ${site.aboutParagraphs.join(' ')}
-
-## Professional Experience
-${site.experience.map((item) => `- ${item.title}: ${item.summary}`).join('\n')}
-
-## Education
-${site.education.map((item) => `- ${item.title}: ${item.summary}`).join('\n')}
-
-## Projects
-${site.projects
-  .map(
-    (group) =>
-      `### ${group.group}\n${group.items
-        .map((item) => `- ${item.title}: ${item.summary}`)
-        .join('\n')}`
-  )
-  .join('\n\n')}
-
-## Research
-${site.research.map((item) => `- ${item.title} (${item.meta}): ${item.summary}`).join('\n')}
-
-## Awards & Certifications
-${site.awardsCertifications
-  .map(
-    (group) =>
-      `### ${group.group}\n${group.items.map((item) => `- ${item.title}: ${item.summary}`).join('\n')}`
-  )
-  .join('\n\n')}
-
-## Links
-${site.contactLinks.map((link) => `- ${link.label}: ${link.href}`).join('\n')}
-`;
-}
-
+function renderRobots() { return `User-agent: *\nAllow: /\nSitemap: ${site.url}/sitemap.xml\n`; }
 function renderSitemap() {
-  const entries = [
-    '/',
-    '/guides/',
-    '/about/',
-    '/projects/',
-    '/research/',
-    '/awards-certifications/',
-    '/contact/',
-    ...guides.map((g) => `/guides/${g.slug}/`),
-    ...site.research.map((post) => `/research/${post.slug}/`),
-  ];
-
+  const routes = ['/', '/guides/', ...guides.map((g) => `/guides/${g.slug}/`)];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${entries
-  .map(
-    (route) =>
-      `  <url><loc>${site.url}${route === '/' ? '/' : route}</loc><lastmod>${today}</lastmod><changefreq>${
-        route.startsWith('/research/') && route !== '/research/' ? 'monthly' : 'weekly'
-      }</changefreq><priority>${
-        route === '/'
-          ? '1.0'
-          : route === '/research/'
-            ? '0.9'
-            : route === '/projects/'
-              ? '0.85'
-              : route === '/awards-certifications/'
-                ? '0.75'
-                : route === '/about/'
-                  ? '0.65'
-                  : route === '/contact/'
-                    ? '0.55'
-                    : '0.7'
-      }</priority></url>`
-  )
-  .join('\n')}
+${routes.map((r) => `  <url><loc>${site.url}${r}</loc><lastmod>${today}</lastmod><changefreq>${r === '/' || r === '/guides/' ? 'weekly' : 'monthly'}</changefreq><priority>${r === '/' ? '1.0' : r === '/guides/' ? '0.9' : '0.7'}</priority></url>`).join('\n')}
 </urlset>
 `;
 }
 
-async function cleanupMediaAssets() {
-  const mediaDir = path.join(root, 'assets', 'media');
-  let entries;
-
-  try {
-    entries = await readdir(mediaDir, { withFileTypes: true });
-  } catch (error) {
-    if (error?.code === 'ENOENT') {
-      return;
-    }
-    throw error;
-  }
-
-  await Promise.all(
-    entries
-      .filter((entry) => entry.isFile() && entry.name !== 'pfp.png' && entry.name !== 'hc-logo.png')
-      .map((entry) => rm(path.join(mediaDir, entry.name), { force: true }))
-  );
-}
-
 async function cleanupGeneratedRoutes() {
-  const routeDirs = ['about', 'projects', 'research', 'awards-certifications', 'contact', 'portfolio', 'blog', 'awards', 'guides'];
-
-  await Promise.all(routeDirs.map((dir) => rm(path.join(root, dir), { recursive: true, force: true })));
+  for (const dir of ['about', 'projects', 'research', 'awards-certifications', 'contact', 'portfolio', 'blog', 'awards', 'guides']) {
+    await rm(path.join(root, dir), { recursive: true, force: true });
+  }
 }
-
-async function writeOutput(relativePath, content) {
-  const target = path.join(root, relativePath);
+async function writeOutput(rel, content) {
+  const target = path.join(root, rel);
   const normalized = String(content).replace(/[ \t]+$/gm, '');
   await mkdir(path.dirname(target), { recursive: true });
-  try {
-    const existing = await readFile(target, 'utf8');
-    if (existing === normalized) {
-      return;
-    }
-  } catch (error) {
-    if (error?.code !== 'ENOENT') {
-      throw error;
-    }
-  }
+  try { if ((await readFile(target, 'utf8')) === normalized) return; } catch (e) { if (e?.code !== 'ENOENT') throw e; }
   await writeFile(target, normalized, 'utf8');
 }
+
+await main();
