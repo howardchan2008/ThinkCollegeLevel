@@ -5,7 +5,7 @@ Pins the guide's branded card image with a link back to the guide.
   python3 pinterest-post.py --slug how-to-get-a-45-in-the-ib    # dry-run (default)
   python3 pinterest-post.py --next --post                       # pin next, cycle all
 """
-import json, os, sys, subprocess, argparse, urllib.request, urllib.error
+import json, os, sys, base64, subprocess, argparse, urllib.request, urllib.error, urllib.parse
 
 SITE = "https://thinkcollegelevel.com"
 API = "https://api.pinterest.com/v5"
@@ -19,10 +19,34 @@ def kc(s):
     return subprocess.run(["security", "find-generic-password", "-s", s, "-w"],
                           capture_output=True, text=True).stdout.strip()
 
+_TOKEN = None
+def access():
+    """Mint a fresh access token from the long-lived refresh token (preferred);
+    fall back to a static pinterest-access-token slot if no refresh token set."""
+    global _TOKEN
+    if _TOKEN:
+        return _TOKEN
+    rt = kc("pinterest-refresh-token")
+    if rt:
+        cid, sec = kc("pinterest-app-id"), kc("pinterest-app-secret")
+        basic = base64.b64encode(f"{cid}:{sec}".encode()).decode()
+        body = urllib.parse.urlencode({"grant_type": "refresh_token", "refresh_token": rt}).encode()
+        req = urllib.request.Request("https://api.pinterest.com/v5/oauth/token", data=body, method="POST",
+                                     headers={"Authorization": f"Basic {basic}",
+                                              "Content-Type": "application/x-www-form-urlencoded"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                _TOKEN = json.loads(r.read().decode()).get("access_token")
+        except urllib.error.HTTPError as e:
+            print(f"(token refresh failed {e.code}: {e.read().decode()[:160]})")
+    if not _TOKEN:
+        _TOKEN = kc("pinterest-access-token")
+    return _TOKEN
+
 def api(method, path, body=None):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(f"{API}{path}", data=data, method=method,
-                                 headers={"Authorization": f"Bearer {kc('pinterest-access-token')}",
+                                 headers={"Authorization": f"Bearer {access()}",
                                           "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
