@@ -7,6 +7,30 @@ const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).forma
 const guides = JSON.parse(await readFile(new URL('./guides-data.json', import.meta.url), 'utf8'));
 const ELEVATEOS_CTA = 'https://elevateos.org/partner-demo';
 
+// Shared Author/Person reference for E-E-A-T (Howard Chan, incoming Cambridge HSPS).
+const authorPerson = {
+  '@type': 'Person',
+  name: site.fullName || site.author,
+  url: site.url,
+  description: site.tagline,
+  alumniOf: ['University of Cambridge', 'K. International School Tokyo'],
+  sameAs: site.contactLinks.map((link) => link.href),
+};
+
+// BreadcrumbList JSON-LD from an ordered list of { name, route } crumbs.
+function breadcrumbLd(crumbs) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbs.map((crumb, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: crumb.name,
+      item: urlFor(crumb.route),
+    })),
+  };
+}
+
 const navItems = [
   { label: 'Home', href: '/' },
   { label: 'Guides', href: '/guides/' },
@@ -233,7 +257,9 @@ function renderPage({
   jsonLd,
   ogType = 'website',
   metaRobots,
+  ogImage = site.ogImage,
 }) {
+  const imageUrl = ogImage ? (ogImage.startsWith('http') ? ogImage : `${site.url}${ogImage}`) : '';
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -241,15 +267,23 @@ function renderPage({
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="${attr(description)}">
   <meta name="theme-color" content="#ffffff">
+  <meta name="author" content="${attr(site.fullName || site.author)}">
   <link rel="canonical" href="${attr(urlFor(canonicalPath))}">
   <link rel="stylesheet" href="/assets/styles.css">
   <link rel="icon" href="/favicon.png" type="image/png">
   <link rel="apple-touch-icon" href="/favicon.png">
   ${metaRobots ? `<meta name="robots" content="${attr(metaRobots)}">` : ''}
   <meta property="og:type" content="${attr(ogType)}">
+  <meta property="og:site_name" content="${attr(site.name)}">
+  <meta property="og:locale" content="en_US">
   <meta property="og:title" content="${attr(title)}">
   <meta property="og:description" content="${attr(description)}">
   <meta property="og:url" content="${attr(urlFor(canonicalPath))}">
+  ${imageUrl ? `<meta property="og:image" content="${attr(imageUrl)}">` : ''}
+  <meta name="twitter:card" content="${imageUrl ? 'summary_large_image' : 'summary'}">
+  <meta name="twitter:title" content="${attr(title)}">
+  <meta name="twitter:description" content="${attr(description)}">
+  ${imageUrl ? `<meta name="twitter:image" content="${attr(imageUrl)}">` : ''}
   <title>${esc(title)}</title>
   <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 </head>
@@ -498,15 +532,23 @@ function renderResearchArticle(post) {
     bodyClass: 'page-post',
     content: `<article class="page-article">${intro}${renderSection('Notes', renderProse(post.body), 'notes')}</article>`,
     ogType: 'article',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'ScholarlyArticle',
-      headline: post.title,
-      datePublished: post.dateIso || today,
-      author: { '@type': 'Person', name: site.fullName || site.author },
-      description: post.summary,
-      mainEntityOfPage: `${site.url}/research/${post.slug}/`,
-    },
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'ScholarlyArticle',
+        headline: post.title,
+        datePublished: post.dateIso || today,
+        author: authorPerson,
+        description: post.summary,
+        inLanguage: 'en',
+        mainEntityOfPage: `${site.url}/research/${post.slug}/`,
+      },
+      breadcrumbLd([
+        { name: 'Home', route: '/' },
+        { name: 'Research', route: '/research/' },
+        { name: post.title, route: `/research/${post.slug}/` },
+      ]),
+    ],
   });
 }
 
@@ -521,12 +563,24 @@ function renderGuidesIndex() {
       guides.map((g) => ({ title: g.title, href: `/guides/${g.slug}/`, summary: g.metaDescription }))
     )}</article>`,
     ogType: 'website',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'CollectionPage',
-      name: `${site.name} Guides`,
-      description: 'Guides to the IB and university admissions for international students.',
-    },
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: `${site.name} Guides`,
+        description: 'Guides to the IB and university admissions for international students.',
+        author: authorPerson,
+        hasPart: guides.map((g) => ({
+          '@type': 'Article',
+          headline: g.title,
+          url: `${site.url}/guides/${g.slug}/`,
+        })),
+      },
+      breadcrumbLd([
+        { name: 'Home', route: '/' },
+        { name: 'Guides', route: '/guides/' },
+      ]),
+    ],
   });
 }
 
@@ -567,12 +621,19 @@ function renderGuideArticle(g) {
         '@type': 'Article',
         headline: g.title,
         datePublished: g.dateIso || today,
-        dateModified: today,
-        author: { '@type': 'Person', name: site.fullName || site.author, url: site.url },
+        dateModified: g.dateModified || today,
+        author: authorPerson,
         publisher: { '@type': 'Organization', name: site.name, url: site.url },
         description: g.metaDescription,
+        inLanguage: 'en',
+        image: `${site.url}${site.ogImage}`,
         mainEntityOfPage: `${site.url}/guides/${g.slug}/`,
       },
+      breadcrumbLd([
+        { name: 'Home', route: '/' },
+        { name: 'Guides', route: '/guides/' },
+        { name: g.title, route: `/guides/${g.slug}/` },
+      ]),
       ...(Array.isArray(g.faq) && g.faq.length
         ? [
             {

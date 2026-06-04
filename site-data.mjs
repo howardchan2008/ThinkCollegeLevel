@@ -29,6 +29,7 @@ export const site = {
     src: '/assets/media/hc-logo.png',
     alt: 'HC',
   },
+  ogImage: '/assets/media/hc-logo.png',
   heroHeadline: 'Howard Chan',
   homeSummary:
     'Incoming Cambridge HSPS student building technical systems for education, service operations, and institutional coordination.',
