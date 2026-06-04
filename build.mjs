@@ -26,6 +26,7 @@ async function main() {
   await writeOutput('_redirects', renderRedirects());
   await writeOutput('robots.txt', renderRobots());
   await writeOutput('sitemap.xml', renderSitemap());
+  await writeOutput('feed.xml', renderFeed());
   await writeOutput('privacy/index.html', renderPrivacy());
   await writeOutput('terms/index.html', renderTerms());
   await writeOutput('CNAME', 'thinkcollegelevel.com\n');
@@ -122,6 +123,7 @@ function renderPage({ title, description, canonicalPath, content, jsonLd, ogType
   <link rel="preload" href="/fonts/newsreader-normal-500-cY9AfjOCX1hbuyalUrK4397yjIJFJpc.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/sourceserif4-normal-400-vEFI2_tTDB4M7-auWDN0ahZJW1gb8te1Xb7G.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="alternate" type="application/rss+xml" title="Think College Level" href="/feed.xml">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.png" sizes="any">
   <meta property="og:type" content="${attr(ogType)}">
@@ -396,6 +398,33 @@ function renderSitemap() {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${routes.map((r) => `  <url><loc>${site.url}${r}</loc><lastmod>${today}</lastmod><changefreq>${r === '/' || r === '/guides/' ? 'weekly' : 'monthly'}</changefreq><priority>${r === '/' ? '1.0' : r === '/guides/' ? '0.9' : '0.7'}</priority></url>`).join('\n')}
 </urlset>
+`;
+}
+
+function renderFeed() {
+  const items = guides.map((g) => {
+    const u = `${site.url}/guides/${g.slug}/`;
+    const pub = new Date(g.dateIso || today).toUTCString();
+    return `  <item>
+    <title>${esc(g.title)}</title>
+    <link>${u}</link>
+    <guid isPermaLink="true">${u}</guid>
+    <pubDate>${pub}</pubDate>
+    <description>${esc(g.metaDescription)}</description>
+  </item>`;
+  }).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Think College Level</title>
+  <link>${site.url}/</link>
+  <description>Honest guides to the IB Diploma and UK, US &amp; Hong Kong university admissions, by an incoming Cambridge HSPS student.</description>
+  <language>en</language>
+  <atom:link href="${site.url}/feed.xml" rel="self" type="application/rss+xml"/>
+  <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+${items}
+</channel>
+</rss>
 `;
 }
 
