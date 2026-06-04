@@ -7,6 +7,15 @@ const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).forma
 const guides = JSON.parse(await readFile(new URL('./guides-data.json', import.meta.url), 'utf8'));
 const ELEVATEOS_CTA = 'https://elevateos.org/partner-demo';
 const HOWARD = 'https://howardchan.me';
+const AUTHOR = {
+  '@type': 'Person',
+  name: 'Chak Hang (Howard) Chan',
+  alternateName: 'Howard Chan',
+  url: HOWARD,
+  sameAs: ['https://www.linkedin.com/in/howardchan2008/', HOWARD],
+  description: 'Incoming Cambridge HSPS student (Peterhouse); predicted IB 45; wrote these guides from an international school in Tokyo.',
+  knowsAbout: ['IB Diploma', 'University admissions', 'UCAS', 'Oxbridge admissions', 'Cambridge HSPS'],
+};
 
 async function main() {
   await cleanupGeneratedRoutes();
@@ -250,7 +259,12 @@ function renderGuideArticle(g) {
     ogType: 'article',
     content,
     jsonLd: [
-      { '@context': 'https://schema.org', '@type': 'Article', headline: g.title, datePublished: g.dateIso || today, dateModified: today, author: { '@type': 'Person', name: site.fullName || site.author, url: HOWARD }, publisher: { '@type': 'Organization', name: 'Think College Level', url: site.url }, description: g.metaDescription, mainEntityOfPage: `${site.url}/guides/${g.slug}/` },
+      { '@context': 'https://schema.org', '@type': 'Article', headline: g.title, datePublished: g.dateIso || today, dateModified: today, author: AUTHOR, publisher: { '@type': 'Organization', name: 'Think College Level', url: site.url }, description: g.metaDescription, mainEntityOfPage: `${site.url}/guides/${g.slug}/` },
+      { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${site.url}/` },
+        { '@type': 'ListItem', position: 2, name: 'Guides', item: `${site.url}/guides/` },
+        { '@type': 'ListItem', position: 3, name: theme, item: `${site.url}/guides/${g.slug}/` },
+      ] },
       ...(g.faq && g.faq.length ? [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: g.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }] : []),
     ],
   });
