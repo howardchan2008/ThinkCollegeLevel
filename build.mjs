@@ -92,7 +92,8 @@ function renderHeader(current) {
 function renderFooter() {
   const cols = [
     ['Guides', [['All guides', '/guides/'], ['Get a 45 in the IB', '/guides/how-to-get-a-45-in-the-ib/'], ['Cambridge statement', '/guides/cambridge-personal-statement-guide/']]],
-    ['Howard', [['Personal site', HOWARD], ['ElevateOS', 'https://elevateos.org'], ['Contact', `${HOWARD}/contact/`]]],
+    ['Howard', [['Personal site', HOWARD], ['Contact', `${HOWARD}/contact/`]]],
+    ['Network', [['ElevateOS', 'https://elevateos.org'], ['Tatemori 盾守', 'https://tatemori.com'], ['Prior Moves', 'https://priormoves.com'], ['nobill', 'https://nobill.app'], ['Premier Trophy', 'https://crystalcentury.com']]],
   ];
   return `<footer class="site-footer"><div class="footer-inner">
     <div class="footer-brand">
