@@ -12,7 +12,7 @@ async function main() {
   await cleanupGeneratedRoutes();
   for (const g of guides) await writeOutput(path.join('guides', g.slug, 'index.html'), renderGuideArticle(g));
   await writeOutput('guides/index.html', renderGuidesIndex('/guides/'));
-  await writeOutput('index.html', renderGuidesIndex('/'));
+  await writeOutput('index.html', renderHome());
   await writeOutput('404.html', renderNotFound());
   await writeOutput('_redirects', renderRedirects());
   await writeOutput('robots.txt', renderRobots());
@@ -253,6 +253,42 @@ function renderGuideArticle(g) {
       { '@context': 'https://schema.org', '@type': 'Article', headline: g.title, datePublished: g.dateIso || today, dateModified: today, author: { '@type': 'Person', name: site.fullName || site.author, url: HOWARD }, publisher: { '@type': 'Organization', name: 'Think College Level', url: site.url }, description: g.metaDescription, mainEntityOfPage: `${site.url}/guides/${g.slug}/` },
       ...(g.faq && g.faq.length ? [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: g.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }] : []),
     ],
+  });
+}
+
+function renderHome() {
+  const featured = guides.find((g) => g.slug === 'how-to-get-a-45-in-the-ib') || guides[0];
+  const popular = guides.filter((g) => g.slug !== featured.slug).slice(0, 6);
+  const content = `<main class="page" id="main">
+    <section class="home-hero">
+      <div class="eyebrow">Think College Level</div>
+      <h1 class="tcl-display">Get into university — without the guesswork.</h1>
+      <p class="lead">Honest, specific guides to the IB Diploma and UK, US &amp; Hong Kong admissions — written by an incoming Cambridge HSPS student who did it from an international school in Tokyo.</p>
+      <div class="hero-actions"><a class="btn btn-primary" href="/guides/">Browse all ${guides.length} guides ${icon('arrow-right')}</a></div>
+    </section>
+
+    <section class="featured" aria-label="Featured guide">
+      <a class="featured-card" href="/guides/${attr(featured.slug)}/">
+        <div class="eyebrow">Start here · ${esc(themeFor(featured.slug))}</div>
+        <h2>${esc(featured.title)}</h2>
+        <p>${esc(featured.metaDescription)}</p>
+        <span class="gc-more">Read guide ${icon('arrow-right')}</span>
+      </a>
+    </section>
+
+    <section class="theme-block">
+      <div class="theme-head"><h2>Popular guides</h2><span class="theme-rule"></span><a class="theme-all" href="/guides/">All guides ${icon('arrow-right')}</a></div>
+      <div class="guide-grid">
+        ${popular.map((g) => `<a class="guide-card" href="/guides/${attr(g.slug)}/"><span class="gc-theme">${esc(themeFor(g.slug))}</span><h3>${esc(g.title)}</h3><p>${esc(g.metaDescription)}</p><span class="gc-more">Read guide ${icon('arrow-right')}</span></a>`).join('')}
+      </div>
+    </section>
+  </main>`;
+  return renderPage({
+    title: 'Think College Level — IB & University Admissions Guides',
+    description: 'Honest guides to the IB Diploma and UK/US/HK university admissions for international students, by an incoming Cambridge HSPS student.',
+    canonicalPath: '/',
+    content,
+    jsonLd: { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Think College Level', url: site.url, description: 'Guides to the IB and university admissions for international students.' },
   });
 }
 
