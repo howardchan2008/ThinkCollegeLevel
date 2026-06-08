@@ -8,3 +8,4 @@ cards/
 .masto-posted
 .pin-posted
 .pinterest-board
+__pycache__/
