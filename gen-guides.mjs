@@ -11,7 +11,7 @@ const OUT = new URL('./guides-data.json', import.meta.url).pathname;
 const force = process.argv.includes('--force');
 
 // target query → article. High-intent, Howard-authoritative (IB45/Cambridge/intl-school), ElevateOS funnel.
-const TOPICS = [
+const _ORIG_TOPICS = [
   ['how-to-get-a-45-in-the-ib', 'How to Get a 45 in the IB Diploma', 'how to get a 45 in IB'],
   ['ib-vs-a-levels-for-university', 'IB vs A-Levels: Which Is Better for University Admissions?', 'IB vs A-Levels'],
   ['apply-to-uk-universities-from-asia', 'How to Apply to UK Universities from Asia', 'apply to UK universities from Asia'],
@@ -39,7 +39,16 @@ const TOPICS = [
   ['gap-year-vs-direct-entry', 'Gap Year vs Direct University Entry: What Is Right for You?', 'gap year vs university'],
 ];
 
-const SCHEMA_HINT = `{"metaTitle":"<=60 chars","metaDescription":"<=155 chars, compelling","intro":["para","para"],"sections":[{"h2":"...","paragraphs":["...","..."]}],"faq":[{"q":"...","a":"..."}],"takeaway":"one-paragraph summary"}`;
+// 508 programmatic topics (slug,title,query,category) from gen-topics.mjs.
+// The original 25 (above) stay in guides-data.json (resume skips them) as polished flagships → ~533 total.
+const TOPICS = JSON.parse(readFileSync(new URL('./topics-500.json', import.meta.url), 'utf8'))
+  .map((t) => [t.slug, t.title, t.query, t.category]);
+const topicIndex = new Map(TOPICS.map((t, idx) => [t[0], idx]));
+const T0 = Date.parse('2026-06-04T00:00:00Z');
+// Stagger publish dates ~2 posts/day backward so 500+ pages don't share one date (spam signal).
+const dateFor = (idx) => new Date(T0 - Math.floor((idx ?? 0) / 2) * 86400000).toISOString().slice(0, 10);
+
+const SCHEMA_HINT =`{"metaTitle":"<=60 chars","metaDescription":"<=155 chars, compelling","intro":["para","para"],"sections":[{"h2":"...","paragraphs":["...","..."]}],"faq":[{"q":"...","a":"..."}],"takeaway":"one-paragraph summary"}`;
 
 async function gen(title, query) {
   const prompt = `Write a genuinely useful, accurate, specific SEO article for a college-admissions blog (thinkcollegelevel.com), authored by Howard Chan — predicted IB 45, incoming Cambridge HSPS (Peterhouse), from an international school in Tokyo, admitted to HKU and HKUST. First-person where natural; honest, concrete, non-generic; reference real exams, timelines, and processes; NEVER fabricate statistics or quotes. Audience: international students applying to UK / US / Hong Kong.
@@ -74,10 +83,10 @@ const CONC = 6;
 let i = 0;
 async function worker() {
   while (i < todo.length) {
-    const [slug, title, query] = todo[i++];
+    const [slug, title, query, category] = todo[i++];
     const data = await gen(title, query);
     if (!data) { console.error(`  ✗ ${slug}`); continue; }
-    results.push({ slug, title, query, ...data, dateIso: '2026-06-03' });
+    results.push({ slug, title, query, category, ...data, dateIso: dateFor(topicIndex.get(slug)) });
     writeFileSync(OUT, JSON.stringify(results, null, 2));
     console.error(`  ✓ ${slug} (${data.sections?.length || 0} sections, ${data.faq?.length || 0} FAQ)`);
   }

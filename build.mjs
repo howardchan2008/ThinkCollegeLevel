@@ -21,10 +21,20 @@ async function main() {
   await cleanupGeneratedRoutes();
   for (const g of guides) await writeOutput(path.join('guides', g.slug, 'index.html'), renderGuideArticle(g));
   await writeOutput('guides/index.html', renderGuidesIndex('/guides/'));
+  for (const [name, slug] of CATEGORIES) {
+    const gs = guides.filter((g) => categoryOf(g) === name);
+    if (!gs.length) continue;
+    const totalPages = Math.max(1, Math.ceil(gs.length / PER_PAGE));
+    for (let p = 1; p <= totalPages; p++) {
+      const rel = p === 1 ? `category/${slug}/index.html` : `category/${slug}/page/${p}/index.html`;
+      await writeOutput(rel, renderCategoryArchive(name, slug, gs, p, totalPages));
+    }
+  }
   await writeOutput('index.html', renderHome());
   await writeOutput('404.html', renderNotFound());
   await writeOutput('_redirects', renderRedirects());
   await writeOutput('robots.txt', renderRobots());
+  await writeOutput('llms.txt', renderLlms());
   await writeOutput('sitemap.xml', renderSitemap());
   await writeOutput('feed.xml', renderFeed());
   await writeOutput('privacy/index.html', renderPrivacy());
@@ -49,6 +59,31 @@ function themeFor(slug) {
   return 'Admissions & strategy';
 }
 const THEME_ORDER = ['IB Diploma', 'UK & Oxbridge', 'US & Hong Kong', 'Admissions & strategy'];
+
+/* ---- 6-category taxonomy (clearly ordered site) ---- */
+const CATEGORIES = [
+  ['IB Diploma', 'ib-diploma'],
+  ['A-Levels & AP', 'a-levels-and-ap'],
+  ['UK & Oxbridge', 'uk-and-oxbridge'],
+  ['US Admissions', 'us-admissions'],
+  ['Hong Kong & Asia', 'hong-kong-and-asia'],
+  ['Strategy & Skills', 'strategy-and-skills'],
+];
+const CAT_NAMES = CATEGORIES.map(([n]) => n);
+const catSlug = (name) => (CATEGORIES.find(([n]) => n === name) || [null, 'strategy-and-skills'])[1];
+function inferCategory(slug) {
+  if (/a-level|\bap-|igcse/.test(slug)) return 'A-Levels & AP';
+  if (/hku|hkust|cuhk|polyu|hong-kong|jupas|asia|singapore|japan/.test(slug)) return 'Hong Kong & Asia';
+  if (/cambridge|oxford|oxbridge|ucas|hsps|personal-statement|supercurricular|apply-to-uk/.test(slug)) return 'UK & Oxbridge';
+  if (/\bsat\b|common-app|ivy|act-|apply-to-us/.test(slug)) return 'US Admissions';
+  if (/\bib\b|tok|extended-essay|internal-assessment|-ib-|ib-|study-schedule/.test(slug)) return 'IB Diploma';
+  return 'Strategy & Skills';
+}
+const categoryOf = (g) => (CAT_NAMES.includes(g.category) ? g.category : inferCategory(g.slug));
+const PER_PAGE = 24;
+function cardHtml(g) {
+  return `<a class="guide-card" href="/guides/${attr(g.slug)}/"><span class="gc-theme">${esc(categoryOf(g))}</span><h3>${esc(g.title)}</h3><p>${esc(g.metaDescription || '')}</p><span class="gc-more">Read guide ${icon('arrow-right')}</span></a>`;
+}
 
 function readMins(g) {
   const words = [
@@ -95,6 +130,7 @@ function renderHeader(current) {
 function renderFooter() {
   const cols = [
     ['Guides', [['All guides', '/guides/'], ['Get a 45 in the IB', '/guides/how-to-get-a-45-in-the-ib/'], ['Cambridge statement', '/guides/cambridge-personal-statement-guide/']]],
+    ['Topics', CATEGORIES.map(([n, s]) => [n, `/category/${s}/`])],
     ['Howard', [['Personal site', HOWARD], ['Contact', `${HOWARD}/contact/`]]],
     ['Network', [['ElevateOS', 'https://elevateos.org'], ['Tatemori 盾守', 'https://tatemori.com'], ['Prior Moves', 'https://priormoves.com'], ['nobill', 'https://nobill.app'], ['Premier Trophy', 'https://crystalcentury.com']]],
   ];
@@ -146,31 +182,22 @@ function renderPage({ title, description, canonicalPath, content, jsonLd, ogType
 
 /* ---------------- guides index ---------------- */
 function renderGuidesIndex(canonicalPath) {
-  const enriched = guides.map((g) => ({ ...g, theme: themeFor(g.slug) }));
-  const byTheme = THEME_ORDER.map((t) => [t, enriched.filter((g) => g.theme === t)]).filter(([, gs]) => gs.length);
-  const chips = `<div class="filter-bar" role="tablist" aria-label="Filter by topic">
-    <button class="chip on" data-theme="all">All</button>
-    ${byTheme.map(([t]) => `<button class="chip" data-theme="${attr(t)}">${esc(t)}</button>`).join('')}
-  </div>`;
-  const blocks = byTheme.map(([t, gs]) => `
-    <section class="theme-block" data-theme="${attr(t)}">
-      <div class="theme-head"><h2>${esc(t)}</h2><span class="count">${gs.length} guide${gs.length > 1 ? 's' : ''}</span><span class="theme-rule"></span></div>
+  const byCat = CATEGORIES
+    .map(([name, slug]) => [name, slug, guides.filter((g) => categoryOf(g) === name)])
+    .filter(([, , gs]) => gs.length);
+  const blocks = byCat.map(([name, slug, gs]) => `
+    <section class="theme-block">
+      <div class="theme-head"><h2><a class="cat-link" href="/category/${slug}/">${esc(name)}</a></h2><span class="count">${gs.length} guide${gs.length > 1 ? 's' : ''}</span><span class="theme-rule"></span><a class="theme-all" href="/category/${slug}/">All ${gs.length} ${icon('arrow-right')}</a></div>
       <div class="guide-grid">
-        ${gs.map((g) => `<a class="guide-card" href="/guides/${attr(g.slug)}/">
-          <span class="gc-theme">${esc(t)}</span>
-          <h3>${esc(g.title)}</h3>
-          <p>${esc(g.metaDescription)}</p>
-          <span class="gc-more">Read guide ${icon('arrow-right')}</span>
-        </a>`).join('')}
+        ${gs.slice(0, 6).map(cardHtml).join('')}
       </div>
     </section>`).join('');
   const content = `<main class="page" id="main">
     <section class="index-hero">
       <div class="eyebrow">Think College Level</div>
       <h1>Honest guides to the IB and university admissions.</h1>
-      <p class="lead">Subject-by-subject IB strategy, UK/US/HK applications, and the things admissions tutors actually look for — written by an incoming Cambridge student who did it from an international school in Tokyo.</p>
+      <p class="lead">${guides.length} free guides — subject-by-subject IB strategy, UK/US/HK applications, and what admissions tutors actually look for. Written by an incoming Cambridge student who did it from an international school in Tokyo.</p>
     </section>
-    ${chips}
     ${blocks}
   </main>`;
   return renderPage({
@@ -182,11 +209,39 @@ function renderGuidesIndex(canonicalPath) {
   });
 }
 
+/* ---------------- category archive (paginated) ---------------- */
+function renderCategoryArchive(name, slug, gs, pageNum, totalPages) {
+  const base = `/category/${slug}/`;
+  const start = (pageNum - 1) * PER_PAGE;
+  const items = gs.slice(start, start + PER_PAGE);
+  const canonicalPath = pageNum === 1 ? base : `${base}page/${pageNum}/`;
+  const pager = totalPages > 1 ? `<nav class="pager" aria-label="Pagination">
+      ${pageNum > 1 ? `<a class="pg" rel="prev" href="${pageNum === 2 ? base : `${base}page/${pageNum - 1}/`}">Previous</a>` : '<span></span>'}
+      <span class="pg-info">Page ${pageNum} of ${totalPages}</span>
+      ${pageNum < totalPages ? `<a class="pg" rel="next" href="${base}page/${pageNum + 1}/">Next ${icon('arrow-right')}</a>` : '<span></span>'}
+    </nav>` : '';
+  const content = `<main class="page" id="main">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a>${icon('chevron-right')}<a href="/guides/">Guides</a>${icon('chevron-right')}<span class="here">${esc(name)}</span></nav>
+    <section class="index-hero"><div class="eyebrow">Category${totalPages > 1 ? ` · page ${pageNum}` : ''}</div><h1>${esc(name)}</h1><p class="lead">${gs.length} guide${gs.length > 1 ? 's' : ''} on ${esc(name)}.</p></section>
+    <div class="guide-grid">${items.map(cardHtml).join('')}</div>
+    ${pager}
+  </main>`;
+  return renderPage({
+    title: `${name} — ${gs.length} Guides · Think College Level`,
+    description: `Every Think College Level guide on ${name} — honest, specific help for international students.`,
+    canonicalPath,
+    content,
+    jsonLd: { '@context': 'https://schema.org', '@type': 'CollectionPage', name: `${name} Guides`, url: `${site.url}${base}`, description: `Guides on ${name}.` },
+  });
+}
+
 /* ---------------- guide article ---------------- */
 function renderGuideArticle(g) {
-  const theme = themeFor(g.slug);
+  const cat = categoryOf(g);
+  const cslug = catSlug(cat);
   const sections = g.sections || [];
-  const related = guides.filter((x) => x.slug !== g.slug).slice(0, 4);
+  const sameCat = guides.filter((x) => x.slug !== g.slug && categoryOf(x) === cat);
+  const related = (sameCat.length >= 4 ? sameCat : [...sameCat, ...guides.filter((x) => x.slug !== g.slug && categoryOf(x) !== cat)]).slice(0, 4);
   const toc = `<aside class="toc" aria-label="On this page">
     <div class="toc-label">On this page</div>
     <nav>${sections.map((s, i) => `<a href="#s${i}">${esc(s.h2)}</a>`).join('')}</nav>
@@ -226,20 +281,16 @@ function renderGuideArticle(g) {
   const relatedBlock = `<section class="related">
     <div class="eyebrow">Keep reading</div>
     <div class="related-grid">
-      ${related.map((r) => `<a class="guide-card" href="/guides/${attr(r.slug)}/">
-        <span class="gc-theme">${esc(themeFor(r.slug))}</span>
-        <h3>${esc(r.title)}</h3>
-        <span class="gc-more">Read guide ${icon('arrow-right')}</span>
-      </a>`).join('')}
+      ${related.map(cardHtml).join('')}
     </div>
   </section>`;
   const content = `<main class="page" id="main">
     <article class="article-wrap">
       <nav class="breadcrumbs" aria-label="Breadcrumb">
-        <a href="/">Home</a>${icon('chevron-right')}<a href="/guides/">Guides</a>${icon('chevron-right')}<span class="here">${esc(theme)}</span>
+        <a href="/">Home</a>${icon('chevron-right')}<a href="/guides/">Guides</a>${icon('chevron-right')}<a href="/category/${attr(cslug)}/">${esc(cat)}</a>
       </nav>
       <header class="article-head">
-        <div class="eyebrow">${esc(theme)}</div>
+        <div class="eyebrow">${esc(cat)}</div>
         <h1>${esc(g.title)}</h1>
         <p class="lead">${esc(g.metaDescription)}</p>
         <div class="article-meta">${icon('user-round')} By Howard Chan <span class="dot">·</span> ${icon('clock')} ${readMins(g)} min read <span class="dot">·</span> Updated Jun 2026</div>
@@ -268,7 +319,8 @@ function renderGuideArticle(g) {
       { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Home', item: `${site.url}/` },
         { '@type': 'ListItem', position: 2, name: 'Guides', item: `${site.url}/guides/` },
-        { '@type': 'ListItem', position: 3, name: theme, item: `${site.url}/guides/${g.slug}/` },
+        { '@type': 'ListItem', position: 3, name: cat, item: `${site.url}/category/${cslug}/` },
+        { '@type': 'ListItem', position: 4, name: g.title, item: `${site.url}/guides/${g.slug}/` },
       ] },
       ...(g.faq && g.faq.length ? [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: g.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }] : []),
     ],
@@ -389,11 +441,27 @@ function renderRedirects() {
 /research/*               ${HOWARD}/research/:splat               301
 /awards-certifications/*  ${HOWARD}/awards-certifications/:splat  301
 /contact/*                ${HOWARD}/contact/:splat                301
+/blog/*                   ${HOWARD}/blog/:splat                   301
+/portfolio/*              ${HOWARD}/portfolio/:splat              301
+/awards/*                 ${HOWARD}/awards/:splat                 301
 `;
 }
 function renderRobots() { return `User-agent: *\nAllow: /\nSitemap: ${site.url}/sitemap.xml\n`; }
+function renderLlms() {
+  const head = `# Think College Level\n\n> IB and university admissions guides, written from lived experience.\n\n## Guides\n`;
+  const items = guides.map((g) => `- [${esc(g.title)}](${site.url}/guides/${g.slug}/)`).join('\n');
+  return `${head}${items}\n`;
+}
 function renderSitemap() {
-  const routes = ['/', '/guides/', ...guides.map((g) => `/guides/${g.slug}/`), '/privacy/', '/terms/'];
+  const catRoutes = [];
+  for (const [name, slug] of CATEGORIES) {
+    const gs = guides.filter((g) => categoryOf(g) === name);
+    if (!gs.length) continue;
+    catRoutes.push(`/category/${slug}/`);
+    const tp = Math.ceil(gs.length / PER_PAGE);
+    for (let p = 2; p <= tp; p++) catRoutes.push(`/category/${slug}/page/${p}/`);
+  }
+  const routes = ['/', '/guides/', ...catRoutes, ...guides.map((g) => `/guides/${g.slug}/`), '/privacy/', '/terms/'];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${routes.map((r) => `  <url><loc>${site.url}${r}</loc><lastmod>${today}</lastmod><changefreq>${r === '/' || r === '/guides/' ? 'weekly' : 'monthly'}</changefreq><priority>${r === '/' ? '1.0' : r === '/guides/' ? '0.9' : '0.7'}</priority></url>`).join('\n')}
@@ -402,7 +470,8 @@ ${routes.map((r) => `  <url><loc>${site.url}${r}</loc><lastmod>${today}</lastmod
 }
 
 function renderFeed() {
-  const items = guides.map((g) => {
+  const recent = [...guides].sort((a, b) => String(b.dateIso || '').localeCompare(String(a.dateIso || ''))).slice(0, 40);
+  const items = recent.map((g) => {
     const u = `${site.url}/guides/${g.slug}/`;
     const pub = new Date(g.dateIso || today).toUTCString();
     return `  <item>
@@ -429,7 +498,7 @@ ${items}
 }
 
 async function cleanupGeneratedRoutes() {
-  for (const dir of ['about', 'projects', 'research', 'awards-certifications', 'contact', 'portfolio', 'blog', 'awards', 'guides', 'privacy', 'terms']) {
+  for (const dir of ['about', 'projects', 'research', 'awards-certifications', 'contact', 'portfolio', 'blog', 'awards', 'guides', 'category', 'privacy', 'terms']) {
     await rm(path.join(root, dir), { recursive: true, force: true });
   }
 }

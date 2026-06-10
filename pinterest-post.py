@@ -62,12 +62,19 @@ def ensure_board():
         bid = open(BOARD_FILE).read().strip()
         if bid:
             return bid
-    code, data = api("GET", "/boards?page_size=25")
-    if code == 200:
+    bookmark = None
+    while True:
+        path = "/boards?page_size=100" + (f"&bookmark={bookmark}" if bookmark else "")
+        code, data = api("GET", path)
+        if code != 200:
+            break
         for b in data.get("items", []):
             if b.get("name") == BOARD_NAME:
                 open(BOARD_FILE, "w").write(b["id"])
                 return b["id"]
+        bookmark = data.get("bookmark")
+        if not bookmark:
+            break
     code, data = api("POST", "/boards", {"name": BOARD_NAME, "description": BOARD_DESC, "privacy": "PUBLIC"})
     if code in (200, 201) and data.get("id"):
         open(BOARD_FILE, "w").write(data["id"])
