@@ -12,6 +12,11 @@ STATE = os.path.join(HERE, ".masto-posted")
 TAGS = "\n\n#IBDP #UniversityAdmissions #StudyTips"
 
 def kc(s):
+    # env-first (GitHub Actions: secret -> env, slug uppercased dashes->underscores),
+    # macOS Keychain fallback (local cron). Backward compatible.
+    env = os.getenv(s.upper().replace("-", "_"))
+    if env:
+        return env.strip()
     return subprocess.run(["security", "find-generic-password", "-s", s, "-w"],
                           capture_output=True, text=True).stdout.strip()
 

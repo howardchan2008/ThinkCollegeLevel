@@ -1,0 +1,83 @@
+name: social-posts
+
+# Replaces the local cron (x-post/bluesky-post/mastodon-post.py) that only fired
+# when Howard's Mac was awake. Now runs on GitHub's schedule, machine-independent.
+# Creds come from repo Secrets (env-first; scripts fall back to macOS Keychain locally).
+# Post-state (.x-posted / .bsky-posted / .masto-posted) is committed back each run so
+# --next advances correctly across runs.
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 14:00 HKT — X
+    - cron: "0 9 * * *" # 17:00 HKT — Bluesky
+    - cron: "0 12 * * *" # 20:00 HKT — Mastodon
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "which platform to post (x | bluesky | mastodon | all)"
+        default: "all"
+      dry_run:
+        description: "validate pipeline + creds without posting (true/false)"
+        default: "false"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: social-posts
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Decide platform(s)
+        id: pick
+        run: |
+          case "${{ github.event.schedule }}" in
+            "0 6 * * *")  echo "p=x" >> "$GITHUB_OUTPUT" ;;
+            "0 9 * * *")  echo "p=bluesky" >> "$GITHUB_OUTPUT" ;;
+            "0 12 * * *") echo "p=mastodon" >> "$GITHUB_OUTPUT" ;;
+            *)            echo "p=${{ github.event.inputs.platform || 'all' }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Post
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+        run: |
+          set -e
+          P="${{ steps.pick.outputs.p }}"
+          DRY="${{ github.event.inputs.dry_run || 'false' }}"
+          if [ "$DRY" = "true" ]; then POSTFLAG=""; echo "DRY-RUN: composing only, no --post"; else POSTFLAG="--post"; fi
+          run_one() { echo "::group::post $1"; python3 "$1-post.py" --next $POSTFLAG || echo "post $1 failed (non-fatal)"; echo "::endgroup::"; }
+          case "$P" in
+            x)        run_one x ;;
+            bluesky)  run_one bluesky ;;
+            mastodon) run_one mastodon ;;
+            all)      run_one x; run_one bluesky; run_one mastodon ;;
+          esac
+
+      - name: Commit advanced post-state
+        run: |
+          git config user.name  "tcl-social-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .x-posted .bsky-posted .masto-posted 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(social): advance post-state [skip ci]"
+            git push
+          else
+            echo "no state change to commit"
+          fi
